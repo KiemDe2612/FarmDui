@@ -721,6 +721,47 @@ class FarmDB {
     };
   }
 
+  getZones() {
+    return this.data.zones || [];
+  }
+
+  // --- QUẢN LÝ VAI TRÒ & NGƯỜI DÙNG HIỆN TẠI (RBAC) ---
+  getCurrentUser() {
+    if (!this.currentUser) {
+      const saved = localStorage.getItem('FARM_CURRENT_USER');
+      this.currentUser = saved ? JSON.parse(saved) : { name: 'Nguyễn Văn Quản Lý', role: 'ADMIN' };
+    }
+    return this.currentUser;
+  }
+
+  setUserRole(role) {
+    const user = this.getCurrentUser();
+    user.role = role;
+    this.currentUser = user;
+    localStorage.setItem('FARM_CURRENT_USER', JSON.stringify(user));
+    this.logAudit(user.name, 'CHANGE_ROLE', `Chuyển vai trò sang: ${role}`);
+    return user;
+  }
+
+  canEditMap() {
+    const role = this.getCurrentUser().role;
+    return role === 'ADMIN' || role === 'MANAGER';
+  }
+
+  canCreateRecords() {
+    const role = this.getCurrentUser().role;
+    return role !== 'VIEWER';
+  }
+
+  // --- THEO DÕI ĐỒNG BỘ NGOẠI TUYẾN (OFFLINE SYNC) ---
+  getOfflineStatus() {
+    return {
+      isOnline: navigator.onLine,
+      lastSyncTime: this.data.last_sync_time || new Date().toISOString(),
+      pendingCount: (this.data.outbox_events || []).length
+    };
+  }
+
   // Xuất file dữ liệu JSON
   exportDataJSON() {
     return JSON.stringify(this.data, null, 2);
