@@ -952,3 +952,4 @@ window.onDeselectBlock = function() {
     infoDiv.innerHTML = `<span style="color:#94a3b8; font-style:italic;">Bấm vào một ô chuồng trên bản đồ để xem chi tiết</span>`;
   }
 };
+

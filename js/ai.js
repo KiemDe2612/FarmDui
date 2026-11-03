@@ -124,3 +124,4 @@ class FarmAIAssistant {
 }
 
 window.farmAI = new FarmAIAssistant(window.farmDB);
+

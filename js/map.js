@@ -389,3 +389,4 @@ class FarmMapEditor {
 }
 
 window.FarmMapEditor = FarmMapEditor;
+

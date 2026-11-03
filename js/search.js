@@ -139,3 +139,4 @@ class FarmSearchEngine {
 }
 
 window.farmSearch = new FarmSearchEngine(window.farmDB);
+

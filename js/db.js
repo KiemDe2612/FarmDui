@@ -744,3 +744,4 @@ class FarmDB {
 
 // Khởi tạo instance toàn cục
 window.farmDB = new FarmDB();
+
