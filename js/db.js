@@ -256,7 +256,7 @@ const INITIAL_SEED = {
     width: 1200,
     height: 800,
     blocks: [
-      { id: 'blk-1', block_type: 'ZONE', zone_name: 'KHU A: SINH SẢN', x: 40, y: 40, width: 440, height: 420, color: '#eef2ff', border: '#818cf8' },
+      { id: 'blk-1', block_type: 'ZONE', zone_name: 'KHU A: SINH SẢN', x: 40, y: 40, width: 440, height: 420, color: '#f4f7f8', border: '#cbd2d6' },
       { id: 'blk-2', block_type: 'PEN', pen_id: 'pen-1', pen_code: 'A01', x: 60, y: 80, width: 120, height: 120, label: 'Chuồng A01 (Đẻ)' },
       { id: 'blk-3', block_type: 'PEN', pen_id: 'pen-2', pen_code: 'A02', x: 200, y: 80, width: 120, height: 120, label: 'Chuồng A02 (Nuôi con)' },
       { id: 'blk-4', block_type: 'PEN', pen_id: 'pen-3', pen_code: 'A03', x: 60, y: 220, width: 120, height: 120, label: 'Chuồng A03 (Đực)' },

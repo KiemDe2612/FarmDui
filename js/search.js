@@ -65,9 +65,9 @@ class FarmSearchEngine {
         results.push({
           category: 'CÁ THỂ (ANIMAL)',
           title: `${animal.animal_code} - ${animal.name || 'Chưa đặt tên'}`,
-          badge: animal.status === 'ACTIVE' ? 'Đang nuôi' : (animal.status === 'DECEASED' ? 'Đã chết' : animal.status),
-          badgeType: animal.status === 'ACTIVE' ? 'success' : 'danger',
-          snippet: `Giới tính: ${animal.sex === 'MALE' ? 'Đực' : (animal.sex === 'FEMALE' ? 'Cái' : 'Chưa rõ')} | Chuồng hiện tại: ${currentPen ? currentPen.pen_code : 'Chưa phân'} | Ghi chú: ${animal.notes || 'Không'}`,
+          badge: animal.status === 'ACTIVE' ? 'Đang nuôi' : (animal.status === 'DECEASED' ? 'Tử vong' : animal.status),
+          badgeType: animal.status === 'ACTIVE' ? 'positive' : 'negative',
+          snippet: `Giới tính: ${animal.sex === 'MALE' ? 'Đực' : (animal.sex === 'FEMALE' ? 'Cái' : 'Chưa rõ')} | Chuồng: ${currentPen ? currentPen.pen_code : 'Chưa phân'} | Ghi chú: ${animal.notes || 'Không'}`,
           actionType: 'VIEW_ANIMAL',
           id: animal.id
         });
@@ -85,7 +85,7 @@ class FarmSearchEngine {
           category: 'CHUỒNG (PEN)',
           title: `Chuồng ${pen.pen_code} - ${pen.name}`,
           badge: pen.status,
-          badgeType: pen.status === 'EMPTY' ? 'secondary' : 'primary',
+          badgeType: pen.status === 'EMPTY' ? 'neutral' : 'accent',
           snippet: `Sức chứa: ${pen.capacity} cá thể | Đang nuôi: ${animalsInPen.length} con (${animalsInPen.map(a => a.animal_code).join(', ') || 'Trống'})`,
           actionType: 'VIEW_PEN',
           id: pen.id
@@ -104,7 +104,7 @@ class FarmSearchEngine {
           category: 'SỰ CỐ (INCIDENT)',
           title: `Sự cố: ${inc.incident_type === 'OFF_FEED' ? 'Dúi Bỏ Ăn (OFF_FEED)' : 'Dúi Chết (DEATH)'} - Cá thể ${animal ? animal.animal_code : inc.animal_id}`,
           badge: inc.status === 'OPEN' ? 'Đang mở' : 'Đã đóng',
-          badgeType: inc.status === 'OPEN' ? 'warning' : 'secondary',
+          badgeType: inc.status === 'OPEN' ? 'warning' : 'neutral',
           snippet: `Triệu chứng: ${inc.symptoms_observed} | Xử lý: ${inc.actions_taken || 'Không ghi nhận'} | Ngày phát hiện: ${new Date(inc.detected_at).toLocaleDateString('vi-VN')}`,
           actionType: 'VIEW_INCIDENT',
           id: inc.id
@@ -122,7 +122,7 @@ class FarmSearchEngine {
           category: 'THUỐC THAM KHẢO (MEDICINE)',
           title: med.trade_name,
           badge: med.medicine_group,
-          badgeType: 'info',
+          badgeType: 'accent',
           snippet: `Hoạt chất: ${med.active_ingredient} | Tác dụng: ${med.reference_description} | Cảnh báo: ${med.warnings}`,
           actionType: 'VIEW_MEDICINE',
           id: med.id

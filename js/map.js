@@ -193,14 +193,14 @@ class FarmMapEditor {
 
     // 3. Vẽ đường viền highlight block đang chọn
     if (this.selectedBlock) {
-      this.ctx.strokeStyle = '#2563eb';
-      this.ctx.lineWidth = 3 / this.scale;
-      this.ctx.setLineDash([6, 3]);
+      this.ctx.strokeStyle = '#1b6c80';
+      this.ctx.lineWidth = 2 / this.scale;
+      this.ctx.setLineDash([4, 2]);
       this.ctx.strokeRect(
-        this.selectedBlock.x - 4,
-        this.selectedBlock.y - 4,
-        this.selectedBlock.width + 8,
-        this.selectedBlock.height + 8
+        this.selectedBlock.x - 3,
+        this.selectedBlock.y - 3,
+        this.selectedBlock.width + 6,
+        this.selectedBlock.height + 6
       );
       this.ctx.setLineDash([]);
     }
@@ -262,58 +262,58 @@ class FarmMapEditor {
       const pen = this.db.getPenById(b.pen_id);
       const animalsInPen = pen ? this.db.getAnimalsInPen(pen.id) : [];
 
-      // Màu sắc theo trạng thái chuồng
+      // Màu sắc theo trạng thái chuồng (tuân thủ app sheet framed-sheet tokens)
       let bgColor = '#ffffff';
-      let borderColor = '#3b82f6';
+      let borderColor = '#1b6c80';
       let statusText = 'Hoạt động';
 
       if (pen) {
         if (pen.status === 'BREEDING') {
-          bgColor = '#faf5ff';
-          borderColor = '#a855f7';
+          bgColor = '#f4f6f8';
+          borderColor = '#2f70bb';
           statusText = 'Sinh sản';
         } else if (pen.status === 'QUARANTINE') {
-          bgColor = '#fff1f2';
-          borderColor = '#f43f5e';
+          bgColor = '#ffedea';
+          borderColor = '#c4242a';
           statusText = 'Cách ly';
         } else if (pen.status === 'EMPTY' || animalsInPen.length === 0) {
-          bgColor = '#f8fafc';
-          borderColor = '#94a3b8';
+          bgColor = '#f9fbfc';
+          borderColor = '#cbcfd4';
           statusText = 'Trống';
         }
       }
 
-      // Bóng mờ & Nền chuồng
+      // Nền chuồng
       this.ctx.fillStyle = bgColor;
       this.ctx.fillRect(b.x, b.y, b.width, b.height);
       this.ctx.strokeStyle = borderColor;
-      this.ctx.lineWidth = 2;
+      this.ctx.lineWidth = 1;
       this.ctx.strokeRect(b.x, b.y, b.width, b.height);
 
       // Header chuồng
       this.ctx.fillStyle = borderColor;
-      this.ctx.fillRect(b.x, b.y, b.width, 26);
+      this.ctx.fillRect(b.x, b.y, b.width, 24);
 
-      // Mã chuồng
+      // Mã chuồng (monospace font)
       this.ctx.fillStyle = '#ffffff';
-      this.ctx.font = 'bold 12px Inter, sans-serif';
-      this.ctx.fillText(`Chuồng ${b.pen_code || (pen ? pen.pen_code : 'N/A')}`, b.x + 8, b.y + 18);
+      this.ctx.font = '500 11px "IBM Plex Mono", monospace';
+      this.ctx.fillText(`Chuồng ${b.pen_code || (pen ? pen.pen_code : 'N/A')}`, b.x + 8, b.y + 16);
 
       // Nội dung chuồng: số lượng cá thể
-      this.ctx.fillStyle = '#0f172a';
-      this.ctx.font = 'bold 14px Inter, sans-serif';
-      const countStr = `🦔 ${animalsInPen.length}/${pen ? pen.capacity : '?'}`;
-      this.ctx.fillText(countStr, b.x + 10, b.y + 55);
+      this.ctx.fillStyle = '#131416';
+      this.ctx.font = '500 13px "IBM Plex Sans", sans-serif';
+      const countStr = `${animalsInPen.length}/${pen ? pen.capacity : '?'} cá thể`;
+      this.ctx.fillText(countStr, b.x + 10, b.y + 52);
 
       // Danh sách mã cá thể con
-      this.ctx.fillStyle = '#475569';
-      this.ctx.font = '11px Inter, sans-serif';
+      this.ctx.fillStyle = '#5d6166';
+      this.ctx.font = '11px "IBM Plex Mono", monospace';
       const codes = animalsInPen.map(a => a.animal_code).join(', ');
-      this.ctx.fillText(codes ? codes.substring(0, 16) : '(Trống)', b.x + 10, b.y + 75);
+      this.ctx.fillText(codes ? codes.substring(0, 16) : '(Trống)', b.x + 10, b.y + 72);
 
       // Trạng thái nhỏ góc dưới
       this.ctx.fillStyle = borderColor;
-      this.ctx.font = 'italic 10px Inter, sans-serif';
+      this.ctx.font = '11px "IBM Plex Sans", sans-serif';
       this.ctx.fillText(statusText, b.x + 10, b.y + b.height - 10);
     }
 

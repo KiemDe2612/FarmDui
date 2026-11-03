@@ -80,13 +80,13 @@ class FarmAIAssistant {
       const meds = this.db.getMedicines();
       reply = `**Thông tin tra cứu từ Thư Viện Thuốc Tham Khảo:**\n\n`;
       meds.forEach(m => {
-        reply += `🔹 **${m.trade_name}** (${m.medicine_group}):\n` +
+        reply += `- **${m.trade_name}** (${m.medicine_group}):\n` +
           `   - Hoạt chất: ${m.active_ingredient}\n` +
           `   - Tham khảo: ${m.reference_description}\n` +
           `   - Lưu ý: ${m.warnings}\n\n`;
       });
 
-      reply += `⚠️ **CẢNH BÁO AN TOÀN Y TẾ & THÚ Y QUAN TRỌNG:**\n` +
+      reply += `**CẢNH BÁO AN TOÀN Y TẾ & THÚ Y:**\n` +
         `Trợ lý AI **tuyệt đối không tự ý kê đơn hoặc chỉ định liều lượng tiêm kháng sinh** cho thú gặm nhấm khi chưa có chỉ định trực tiếp từ Bác sĩ Thú y chuyên khoa. Việc tiêm sai liều hoặc dùng kháng sinh tùy tiện có thể gây liệt ruột và tử vong cho dúi!`;
       sources.push('Thư viện thuốc tham khảo nội bộ');
     }
@@ -102,13 +102,13 @@ class FarmAIAssistant {
     }
     // 6. Mặc định
     else {
-      reply = `Chào bạn! Tôi là **Trợ Lý AI Trang Trại Dúi**.\n` +
+      reply = `Chào bạn. Tôi là **Trợ Lý AI Trang Trại Dúi**.\n` +
         `Tôi có thể hỗ trợ bạn tra cứu nhanh các thông tin sau:\n` +
-        `- 📊 **Báo cáo tổng quan:** *"Thống kê số lượng dúi hiện tại"*\n` +
-        `- 🦔 **Hồ sơ cá thể:** *"Thông tin cá thể D001"*, *"D007"*...\n` +
-        `- ⚠️ **Tình hình sức khỏe:** *"Những ca bỏ ăn đang mở"*, *"Dúi nào đang cách ly"*\n` +
-        `- 💊 **Thuốc tham khảo:** *"Tra cứu danh mục thuốc"* (Tuân thủ cảnh báo thú y)\n` +
-        `- 🧬 **Kiểm tra cận huyết:** *"Cách phòng tránh trùng huyết khi ghép đôi"*`;
+        `- **Báo cáo tổng quan:** *"Thống kê số lượng dúi hiện tại"*\n` +
+        `- **Hồ sơ cá thể:** *"Thông tin cá thể D001"*, *"D007"*...\n` +
+        `- **Tình hình sức khỏe:** *"Những ca bỏ ăn đang mở"*, *"Dúi nào đang cách ly"*\n` +
+        `- **Thuốc tham khảo:** *"Tra cứu danh mục thuốc"* (Tuân thủ cảnh báo thú y)\n` +
+        `- **Kiểm tra cận huyết:** *"Cách phòng tránh trùng huyết khi ghép đôi"*`;
     }
 
     const message = {
