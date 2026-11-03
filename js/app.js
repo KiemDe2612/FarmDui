@@ -6,6 +6,9 @@
 
 let mapEditorInstance = null;
 let currentActiveTab = 'tab-dashboard';
+let currentAnimalFilter = 'ALL';
+let currentDetailAnimalId = null;
+let currentDetailTabKey = 'info';
 
 document.addEventListener('DOMContentLoaded', () => {
   // 1. Initial State & RBAC Setup
@@ -14,15 +17,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Setup Online/Offline Status Indicator
   const onlineDot = document.getElementById('onlineStatusDot');
-  if (onlineDot) {
-    const updateOnline = () => {
-      onlineDot.style.background = navigator.onLine ? 'var(--positive)' : 'var(--negative)';
-      onlineDot.title = navigator.onLine ? 'Đang trực tuyến' : 'Ngoại tuyến (Offline)';
-    };
-    window.addEventListener('online', updateOnline);
-    window.addEventListener('offline', updateOnline);
-    updateOnline();
-  }
+  const syncStatusText = document.getElementById('syncStatusText');
+  const updateOnline = () => {
+    const isOnline = navigator.onLine;
+    if (onlineDot) {
+      onlineDot.style.background = isOnline ? 'var(--positive)' : 'var(--negative)';
+    }
+    if (syncStatusText) {
+      syncStatusText.textContent = isOnline ? 'Đã đồng bộ' : 'Ngoại tuyến';
+    }
+  };
+  window.addEventListener('online', updateOnline);
+  window.addEventListener('offline', updateOnline);
+  updateOnline();
 
   // 2. Bottom Navigation Listeners
   const navButtons = document.querySelectorAll('.nav-tab-btn');
@@ -37,17 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 3. Animal Filters Setup
   const animalSearchInput = document.getElementById('animalSearchInput');
-  const animalSexFilter = document.getElementById('animalSexFilter');
-  const animalStatusFilter = document.getElementById('animalStatusFilter');
-
   if (animalSearchInput) {
     animalSearchInput.addEventListener('input', () => renderAnimals());
-  }
-  if (animalSexFilter) {
-    animalSexFilter.addEventListener('change', () => renderAnimals());
-  }
-  if (animalStatusFilter) {
-    animalStatusFilter.addEventListener('change', () => renderAnimals());
   }
 
   // 4. Mobile Intelligent Search Setup
@@ -313,64 +311,79 @@ function updateRoleUI(role) {
 }
 
 // ==========================================
-// 1. DASHBOARD MODULE
+// 1. DASHBOARD MODULE (MOBILE CARDS & ALERTS)
 // ==========================================
 
 function renderDashboard() {
   const stats = window.farmDB.getDashboardStats();
 
+  // 6 KPI Cards
   const elTotalAnimals = document.getElementById('statTotalAnimals');
   if (elTotalAnimals) elTotalAnimals.textContent = stats.totalActiveAnimals;
 
   const elSexRatio = document.getElementById('statSexRatio');
-  if (elSexRatio) elSexRatio.textContent = `Đực: ${stats.maleCount} · Cái: ${stats.femaleCount} · Chưa rõ: ${stats.unknownCount}`;
+  if (elSexRatio) elSexRatio.textContent = `Đực: ${stats.maleCount} · Cái: ${stats.femaleCount}`;
 
   const elTotalPens = document.getElementById('statTotalPens');
-  if (elTotalPens) elTotalPens.textContent = `${stats.activePens}/${stats.totalPens}`;
+  if (elTotalPens) elTotalPens.textContent = stats.totalPens;
 
-  const elPenDetails = document.getElementById('statPenDetails');
-  if (elPenDetails) elPenDetails.textContent = `Đẻ: ${stats.breedingPens} · Trống: ${stats.emptyPens} · Cách ly: ${stats.quarantinePens}`;
+  const elActivePens = document.getElementById('statActivePens');
+  if (elActivePens) elActivePens.textContent = stats.activePens;
 
+  const elEmptyPens = document.getElementById('statEmptyPens');
+  if (elEmptyPens) elEmptyPens.textContent = stats.emptyPens;
+
+  const elBreedingPens = document.getElementById('statBreedingPens');
+  if (elBreedingPens) elBreedingPens.textContent = stats.breedingPens;
+
+  const elQuarantinePens = document.getElementById('statQuarantinePens');
+  if (elQuarantinePens) elQuarantinePens.textContent = stats.quarantinePens;
+
+  // Alerts
   const elOpenIncidents = document.getElementById('statOpenIncidents');
   if (elOpenIncidents) elOpenIncidents.textContent = stats.openOffFeedIncidents;
 
   const elTotalDeaths = document.getElementById('statTotalDeaths');
   if (elTotalDeaths) elTotalDeaths.textContent = stats.totalDeaths;
 
-  const listContainer = document.getElementById('dashboardRecentIncidentsList');
+  const elNewBorns = document.getElementById('statNewBorns');
+  if (elNewBorns) elNewBorns.textContent = stats.newBornCount || 0;
+
+  // Recent Activities
+  const listContainer = document.getElementById('dashboardRecentActivitiesList');
   if (!listContainer) return;
 
   listContainer.innerHTML = '';
-  if (!stats.recentIncidents || stats.recentIncidents.length === 0) {
+  const activities = stats.recentActivities || [];
+
+  if (activities.length === 0) {
     listContainer.innerHTML = `
-      <div style="text-align:center; padding:20px; color:var(--faint); font-size:13px;">
-        Không có sự cố nào gần đây. Đàn dúi phát triển khỏe mạnh.
+      <div style="text-align:center; padding:18px; color:var(--faint); font-size:12.5px;">
+        Chưa có hoạt động nào được ghi nhận gần đây.
       </div>
     `;
     return;
   }
 
-  stats.recentIncidents.slice(0, 3).forEach(inc => {
-    const animal = window.farmDB.getAnimalById(inc.animal_id);
-    const pen = inc.pen_id ? window.farmDB.getPenById(inc.pen_id) : (animal ? window.farmDB.getCurrentPenForAnimal(animal.id) : null);
-    const isDeath = inc.incident_type === 'DEATH';
-
+  activities.forEach(act => {
     const card = document.createElement('div');
     card.className = 'item-card';
     card.style.cursor = 'pointer';
-    card.onclick = () => switchSubModule('sub-incidents');
+    card.style.marginBottom = '6px';
+    card.style.padding = '10px 12px';
+    card.onclick = () => {
+      if (act.type === 'INCIDENT') switchSubModule('sub-incidents');
+      else if (act.type === 'LITTER') switchTab('tab-breeding');
+      else switchTab('tab-animals');
+    };
 
     card.innerHTML = `
-      <div class="item-card-header">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="pill ${isDeath ? 'pill-negative' : 'pill-warning'}">${isDeath ? 'Tử vong' : 'Bỏ ăn'}</span>
-          <span class="mono-code" style="font-weight:600; color:var(--text);">${animal ? animal.animal_code : 'N/A'}</span>
-          ${pen ? `<span style="font-size:12px; color:var(--muted);">${pen.pen_code}</span>` : ''}
-        </div>
-        <span class="mono-code" style="font-size:11.5px; color:var(--faint);">${new Date(inc.detected_at).toLocaleDateString('vi-VN')}</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+        <span class="pill ${act.badgeClass}" style="font-size:11px;">${act.title}</span>
+        <span class="mono-code" style="font-size:11px; color:var(--faint);">${new Date(act.time).toLocaleDateString('vi-VN')}</span>
       </div>
-      <div style="font-size:12.5px; color:var(--muted); margin-top:2px;">
-        ${inc.symptoms_observed}
+      <div style="font-size:12.5px; color:var(--text); line-height:1.35;">
+        ${act.desc}
       </div>
     `;
     listContainer.appendChild(card);
@@ -386,18 +399,27 @@ window.onSelectPenBlock = function(penId) {
   if (!pen) return;
   const animals = window.farmDB.getAnimalsInPen(penId);
 
+  const zone = pen.zone_id ? window.farmDB.getZones().find(z => z.id === pen.zone_id) : null;
+
   const sheetPenCode = document.getElementById('sheetPenCode');
   const sheetPenName = document.getElementById('sheetPenName');
   const sheetPenStatus = document.getElementById('sheetPenStatus');
-  const sheetPenCapacity = document.getElementById('sheetPenCapacity');
+  const sheetPenZone = document.getElementById('sheetPenZone');
+  const sheetPenCapacityMax = document.getElementById('sheetPenCapacityMax');
+  const sheetPenAnimalCount = document.getElementById('sheetPenAnimalCount');
+  const sheetAnimalsHeader = document.getElementById('sheetAnimalsHeader');
   const sheetAnimalsList = document.getElementById('sheetAnimalsList');
   const sheetTransferBtn = document.getElementById('sheetTransferBtn');
 
   if (sheetPenCode) sheetPenCode.textContent = `Chuồng ${pen.pen_code}`;
   if (sheetPenName) sheetPenName.textContent = pen.name || 'Chuồng nuôi dúi tiêu chuẩn';
+  if (sheetPenZone) sheetPenZone.textContent = zone ? zone.name : 'Khu chung';
+  if (sheetPenCapacityMax) sheetPenCapacityMax.textContent = `${pen.capacity} con`;
+  if (sheetPenAnimalCount) sheetPenAnimalCount.textContent = `${animals.length} con`;
+  if (sheetAnimalsHeader) sheetAnimalsHeader.textContent = `Danh sách cá thể (${animals.length})`;
 
   if (sheetPenStatus) {
-    let statusText = 'Hoạt động';
+    let statusText = 'Đang nuôi';
     let pillClass = 'pill-positive';
     if (pen.status === 'BREEDING') { statusText = 'Sinh sản'; pillClass = 'pill-accent'; }
     else if (pen.status === 'QUARANTINE') { statusText = 'Cách ly'; pillClass = 'pill-negative'; }
@@ -407,27 +429,36 @@ window.onSelectPenBlock = function(penId) {
     sheetPenStatus.textContent = statusText;
   }
 
-  if (sheetPenCapacity) {
-    sheetPenCapacity.textContent = `${animals.length}/${pen.capacity} con`;
-  }
-
   if (sheetAnimalsList) {
     sheetAnimalsList.innerHTML = '';
     if (animals.length === 0) {
-      sheetAnimalsList.innerHTML = '<span style="color:var(--faint); font-style:italic;">Chuồng hiện đang trống</span>';
+      sheetAnimalsList.innerHTML = '<span style="color:var(--faint); font-style:italic; padding:6px 0; display:block;">Chuồng hiện đang trống, chưa có cá thể nuôi.</span>';
     } else {
       animals.forEach(a => {
-        const badge = document.createElement('span');
-        badge.className = 'pill pill-accent';
-        badge.style.cursor = 'pointer';
-        badge.style.fontFamily = 'var(--mono)';
-        badge.textContent = `${a.animal_code} (${a.sex === 'MALE' ? 'Đực' : (a.sex === 'FEMALE' ? 'Cái' : '?')})`;
-        badge.onclick = (e) => {
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--raised); border-radius:6px; margin-bottom:6px; cursor:pointer;';
+        const genderLabel = a.sex === 'MALE' ? 'Đực' : (a.sex === 'FEMALE' ? 'Cái' : '?');
+        const genderColor = a.sex === 'MALE' ? 'var(--accent)' : '#b83280';
+
+        item.onclick = (e) => {
           e.stopPropagation();
           closeMapSheet();
           openAnimalDetailView(a.id);
         };
-        sheetAnimalsList.appendChild(badge);
+
+        item.innerHTML = `
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div style="width:34px; height:28px; border-radius:6px; background:var(--surface); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:${genderColor};">
+              ${genderLabel}
+            </div>
+            <div>
+              <div class="mono-code" style="font-weight:600; color:var(--text); font-size:13px;">${a.animal_code}</div>
+              <div style="font-size:11.5px; color:var(--muted);">${a.name || 'Dúi'} · ${a.species || 'Dúi Mốc'}</div>
+            </div>
+          </div>
+          <span class="pill ${a.status === 'ACTIVE' ? 'pill-positive' : 'pill-neutral'}">${a.status === 'ACTIVE' ? 'Bình thường' : a.status}</span>
+        `;
+        sheetAnimalsList.appendChild(item);
       });
     }
   }
@@ -509,17 +540,30 @@ window.filterMapByZone = filterMapByZone;
 // 3. ANIMAL PROFILES MODULE (MOBILE CARDS)
 // ==========================================
 
+function setAnimalFilter(filterKey) {
+  currentAnimalFilter = filterKey;
+  const chips = document.querySelectorAll('#animalFilterChips .horizontal-tab-btn');
+  chips.forEach(c => {
+    if (c.getAttribute('data-filter') === filterKey) {
+      c.classList.add('active');
+    } else {
+      c.classList.remove('active');
+    }
+  });
+  renderAnimals();
+}
+window.setAnimalFilter = setAnimalFilter;
+
 function renderAnimals() {
   const container = document.getElementById('animalsListContainer');
+  const countHeader = document.getElementById('animalCountHeader');
   if (!container) return;
 
   const searchVal = document.getElementById('animalSearchInput') ? document.getElementById('animalSearchInput').value.trim() : '';
-  const sexVal = document.getElementById('animalSexFilter') ? document.getElementById('animalSexFilter').value : 'ALL';
-  const statusVal = document.getElementById('animalStatusFilter') ? document.getElementById('animalStatusFilter').value : 'ALL';
 
   let animals = window.farmDB.getAnimals();
 
-  // Apply filters
+  // Search filter
   if (searchVal) {
     const q = searchVal.toLowerCase();
     animals = animals.filter(a => {
@@ -529,18 +573,35 @@ function renderAnimals() {
     });
   }
 
-  if (sexVal !== 'ALL') {
-    animals = animals.filter(a => a.sex === sexVal);
+  // Filter chips
+  if (currentAnimalFilter === 'MALE') {
+    animals = animals.filter(a => a.sex === 'MALE');
+  } else if (currentAnimalFilter === 'FEMALE') {
+    animals = animals.filter(a => a.sex === 'FEMALE');
+  } else if (currentAnimalFilter === 'ACTIVE') {
+    animals = animals.filter(a => a.status === 'ACTIVE');
+  } else if (currentAnimalFilter === 'DECEASED') {
+    animals = animals.filter(a => a.status === 'DECEASED');
+  } else if (currentAnimalFilter === 'BREEDING') {
+    animals = animals.filter(a => {
+      const p = window.farmDB.getCurrentPenForAnimal(a.id);
+      return p && p.status === 'BREEDING';
+    });
+  } else if (currentAnimalFilter === 'QUARANTINE') {
+    animals = animals.filter(a => {
+      const p = window.farmDB.getCurrentPenForAnimal(a.id);
+      return p && p.status === 'QUARANTINE';
+    });
   }
 
-  if (statusVal !== 'ALL') {
-    animals = animals.filter(a => a.status === statusVal);
+  if (countHeader) {
+    countHeader.textContent = `${animals.length} cá thể trong hệ thống`;
   }
 
   container.innerHTML = '';
   if (animals.length === 0) {
     container.innerHTML = `
-      <div style="text-align:center; padding:32px 16px; color:var(--faint);">
+      <div style="text-align:center; padding:36px 16px; color:var(--faint);">
         <div>Không tìm thấy cá thể nào phù hợp bộ lọc.</div>
         <button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="openAddAnimalModal()">+ Thêm cá thể mới</button>
       </div>
@@ -554,14 +615,14 @@ function renderAnimals() {
     const latestWeight = weights.length > 0 ? weights[weights.length - 1] : null;
 
     let statusPillClass = 'pill-positive';
-    let statusText = 'Đang nuôi';
+    let statusText = 'Bình thường';
     if (a.status === 'DECEASED') { statusPillClass = 'pill-negative'; statusText = 'Tử vong'; }
     else if (a.status === 'SOLD') { statusPillClass = 'pill-neutral'; statusText = 'Đã bán'; }
+    else if (currentPen && currentPen.status === 'BREEDING') { statusPillClass = 'pill-accent'; statusText = 'Sinh sản'; }
+    else if (currentPen && currentPen.status === 'QUARANTINE') { statusPillClass = 'pill-negative'; statusText = 'Cách ly'; }
 
-    let sexPillClass = 'pill-accent';
-    let sexText = 'Đực';
-    if (a.sex === 'FEMALE') { sexPillClass = 'pill-neutral'; sexText = 'Cái'; }
-    else if (a.sex === 'UNKNOWN') { sexPillClass = 'pill-neutral'; sexText = 'Chưa rõ'; }
+    const genderLabel = a.sex === 'MALE' ? 'Đực' : (a.sex === 'FEMALE' ? 'Cái' : '?');
+    const genderColor = a.sex === 'MALE' ? 'var(--accent)' : '#b83280';
 
     const card = document.createElement('div');
     card.className = 'item-card';
@@ -569,27 +630,30 @@ function renderAnimals() {
     card.onclick = () => openAnimalDetailView(a.id);
 
     card.innerHTML = `
-      <div class="item-card-header">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <span class="mono-code" style="font-size:16px; font-weight:600; color:var(--accent);">${a.animal_code}</span>
-          <span class="pill ${sexPillClass}">${sexText}</span>
+      <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div class="animal-card-avatar">
+            <span style="font-size:12px; font-weight:600; color:${genderColor};">${genderLabel}</span>
+          </div>
+          <div>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="mono-code" style="font-size:16px; font-weight:600; color:var(--text);">${a.animal_code}</span>
+              <span style="font-size:13px; font-weight:500; color:var(--muted);">${a.name || ''}</span>
+            </div>
+            <div style="font-size:12px; color:var(--accent); font-weight:500;">
+              Chuồng: ${currentPen ? currentPen.pen_code : 'Chưa phân'}
+            </div>
+          </div>
         </div>
-        <span class="pill ${statusPillClass}">${statusText}</span>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span class="pill ${statusPillClass}">${statusText}</span>
+          <span style="color:var(--faint); font-size:18px;">›</span>
+        </div>
       </div>
 
-      <div class="item-card-grid">
-        <div>Tên gọi: <strong>${a.name || 'Chưa đặt'}</strong></div>
-        <div>Chuồng: <strong>${currentPen ? currentPen.pen_code : 'Chưa phân'}</strong></div>
+      <div class="item-card-grid" style="font-size:12px; border-top:1px solid var(--rule); padding-top:6px; margin-top:4px;">
         <div>Ngày sinh: <span class="mono-code">${a.date_of_birth || '-'}</span></div>
         <div>Cân nặng: <strong class="num">${latestWeight ? `${latestWeight.weight_value} kg` : '-'}</strong></div>
-      </div>
-
-      <div class="item-card-actions" onclick="event.stopPropagation()">
-        <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openAnimalDetailView('${a.id}')">Xem hồ sơ</button>
-        ${a.status === 'ACTIVE' ? `
-          <button class="btn btn-outline btn-sm" onclick="openWeightModal('${a.id}')">Cân</button>
-          <button class="btn btn-outline btn-sm" onclick="openTransferModal('${a.id}')">Đổi chuồng</button>
-        ` : ''}
       </div>
     `;
 
@@ -598,36 +662,41 @@ function renderAnimals() {
 }
 
 // ==========================================
-// 4. FULL-SCREEN SLIDE-OVER DETAIL VIEW
+// 4. FULL-SCREEN SLIDE-OVER DETAIL VIEW (7 TABS)
 // ==========================================
 
 function openAnimalDetailView(animalId) {
+  currentDetailAnimalId = animalId;
   const animal = window.farmDB.getAnimalById(animalId);
   if (!animal) return;
 
   const currentPen = window.farmDB.getCurrentPenForAnimal(animal.id);
-  const weights = window.farmDB.getWeights(animal.id);
-  const pedigree = window.farmDB.getPedigree(animal.id);
+  const zone = currentPen && currentPen.zone_id ? window.farmDB.getZones().find(z => z.id === currentPen.zone_id) : null;
 
-  // Set header elements
+  // Header Elements
   document.getElementById('detailAnimalCode').textContent = animal.animal_code;
+  document.getElementById('detailAnimalHeaderCode').textContent = animal.animal_code;
+  document.getElementById('detailAnimalName').textContent = animal.name || 'Chưa đặt tên';
+
+  const genderLabel = animal.sex === 'MALE' ? 'Đực' : (animal.sex === 'FEMALE' ? 'Cái' : 'Chưa rõ');
+  const genderIconEl = document.getElementById('detailAnimalGenderIcon');
+  if (genderIconEl) {
+    genderIconEl.textContent = genderLabel;
+    genderIconEl.className = animal.sex === 'MALE' ? 'pill pill-accent' : 'pill pill-neutral';
+  }
+
+  const penLocEl = document.getElementById('detailAnimalPenLocation');
+  if (penLocEl) {
+    penLocEl.textContent = currentPen ? `Chuồng: ${currentPen.pen_code} · ${zone ? zone.name : 'Khu chung'}` : 'Chưa phân bổ chuồng';
+  }
+
   const statusPill = document.getElementById('detailAnimalStatus');
   if (statusPill) {
     statusPill.className = `pill ${animal.status === 'ACTIVE' ? 'pill-positive' : 'pill-negative'}`;
     statusPill.textContent = animal.status === 'ACTIVE' ? 'Đang nuôi' : (animal.status === 'DECEASED' ? 'Tử vong' : animal.status);
   }
 
-  // Set body info
-  document.getElementById('detailAnimalName').textContent = animal.name || 'Chưa đặt tên';
-  document.getElementById('detailAnimalSpecies').textContent = animal.species || 'Dúi Mốc Lớn';
-  document.getElementById('detailAnimalSex').textContent = animal.sex === 'MALE' ? 'Đực' : (animal.sex === 'FEMALE' ? 'Cái' : 'Chưa rõ');
-  document.getElementById('detailAnimalDOB').textContent = animal.date_of_birth || 'Chưa rõ';
-  document.getElementById('detailAnimalOrigin').textContent = animal.origin_type === 'BORN' ? 'Sinh tại trại' : 'Mua ngoài';
-  document.getElementById('detailAnimalPen').textContent = currentPen ? `Chuồng ${currentPen.pen_code} (${currentPen.name})` : 'Chưa phân chuồng';
-  document.getElementById('detailAnimalParents').textContent = `Bố: ${pedigree.father ? pedigree.father.animal_code : 'Chưa rõ'} · Mẹ: ${pedigree.mother ? pedigree.mother.animal_code : 'Chưa rõ'}`;
-  document.getElementById('detailAnimalNotes').textContent = animal.notes || 'Không có ghi chú nào';
-
-  // Wire buttons
+  // Action Buttons
   const weighBtn = document.getElementById('detailActionWeighBtn');
   const transferBtn = document.getElementById('detailActionTransferBtn');
   if (weighBtn) {
@@ -639,27 +708,8 @@ function openAnimalDetailView(animalId) {
     transferBtn.onclick = () => openTransferModal(animal.id);
   }
 
-  // Render Weight History
-  const weightsList = document.getElementById('detailWeightsList');
-  if (weightsList) {
-    weightsList.innerHTML = '';
-    if (weights.length === 0) {
-      weightsList.innerHTML = '<div style="color:var(--faint); font-size:12px; padding:8px 0;">Chưa có dữ liệu cân nặng nào</div>';
-    } else {
-      weights.slice().reverse().forEach(w => {
-        const row = document.createElement('div');
-        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--rule); font-size:12.5px;';
-        row.innerHTML = `
-          <div>
-            <span class="mono-code" style="color:var(--muted);">${w.measured_at}</span>
-            ${w.note ? `<div style="font-size:11.5px; color:var(--faint);">${w.note}</div>` : ''}
-          </div>
-          <strong class="num" style="font-size:14px; color:var(--accent);">${w.weight_value} ${w.weight_unit}</strong>
-        `;
-        weightsList.appendChild(row);
-      });
-    }
-  }
+  // Render current tab (defaults to 'info')
+  switchAnimalDetailTab(currentDetailTabKey || 'info');
 
   // Open Full-Screen Overlay
   const view = document.getElementById('animalDetailView');
@@ -672,6 +722,243 @@ function closeAnimalDetailView() {
   if (view) view.classList.remove('open');
 }
 window.closeAnimalDetailView = closeAnimalDetailView;
+
+function switchAnimalDetailTab(tabKey) {
+  currentDetailTabKey = tabKey;
+  if (!currentDetailAnimalId) return;
+
+  const animal = window.farmDB.getAnimalById(currentDetailAnimalId);
+  if (!animal) return;
+
+  // Update tab buttons
+  document.querySelectorAll('#animalDetailTabNav .horizontal-tab-btn').forEach(btn => {
+    if (btn.getAttribute('data-tab') === tabKey) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
+
+  const contentArea = document.getElementById('animalDetailTabContent');
+  if (!contentArea) return;
+
+  contentArea.innerHTML = '';
+
+  if (tabKey === 'info') {
+    // TAB 1: THÔNG TIN CƠ BẢN
+    const currentPen = window.farmDB.getCurrentPenForAnimal(animal.id);
+    const pedigree = window.farmDB.getPedigree(animal.id);
+    const weights = window.farmDB.getWeights(animal.id);
+    const latestWeight = weights.length > 0 ? weights[weights.length - 1] : null;
+
+    contentArea.innerHTML = `
+      <div class="item-card">
+        <div class="item-card-title">Thông tin cơ bản</div>
+        <div class="item-card-grid" style="margin-top:8px;">
+          <div>Mã cá thể: <strong class="mono-code">${animal.animal_code}</strong></div>
+          <div>Giới tính: <strong>${animal.sex === 'MALE' ? 'Đực' : (animal.sex === 'FEMALE' ? 'Cái' : 'Chưa rõ')}</strong></div>
+          <div>Ngày sinh: <span class="mono-code">${animal.date_of_birth || '-'}</span></div>
+          <div>Nguồn gốc: <span>${animal.origin_type === 'BORN' ? 'Sinh tại trại' : 'Mua ngoài'}</span></div>
+          <div>Chủng loài: <span>${animal.species || 'Dúi Mốc Lớn'}</span></div>
+          <div>Chuồng hiện tại: <strong class="mono-code">${currentPen ? currentPen.pen_code : 'Chưa có'}</strong></div>
+          <div>Bố: <strong class="mono-code">${pedigree.father ? pedigree.father.animal_code : 'Chưa rõ'}</strong></div>
+          <div>Mẹ: <strong class="mono-code">${pedigree.mother ? pedigree.mother.animal_code : 'Chưa rõ'}</strong></div>
+        </div>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;">
+          Ghi chú: ${animal.notes || 'Không có ghi chú nào.'}
+        </div>
+      </div>
+
+      <div class="item-card">
+        <div class="item-card-title">Cân nặng gần nhất</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px;">
+          <div>
+            <div class="num" style="font-size:22px; font-weight:600; color:var(--accent);">
+              ${latestWeight ? `${latestWeight.weight_value} ${latestWeight.weight_unit}` : 'Chưa có dữ liệu'}
+            </div>
+            <div style="font-size:11.5px; color:var(--faint);">
+              ${latestWeight ? `Ngày cập nhật: ${latestWeight.measured_at}` : 'Hãy bấm nút ghi nhận bên dưới để thêm'}
+            </div>
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="openWeightModal('${animal.id}')">+ Cân mới</button>
+        </div>
+      </div>
+    `;
+  } else if (tabKey === 'pens') {
+    // TAB 2: LỊCH SỬ CHUỒNG
+    const history = window.farmDB.getPenAssignmentHistory(animal.id);
+    if (history.length === 0) {
+      contentArea.innerHTML = '<div class="item-card" style="color:var(--faint); text-align:center; padding:20px;">Chưa có lịch sử chuyển chuồng nào.</div>';
+    } else {
+      const container = document.createElement('div');
+      container.className = 'item-card';
+      container.innerHTML = `<div class="item-card-title" style="margin-bottom:8px;">Lịch sử phân bổ chuồng</div>`;
+      history.forEach(pa => {
+        const pen = window.farmDB.getPenById(pa.pen_id);
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:8px 0; border-bottom:1px solid var(--rule); font-size:12.5px;';
+        row.innerHTML = `
+          <div style="display:flex; justify-content:space-between;">
+            <strong class="mono-code">${pen ? `Chuồng ${pen.pen_code} - ${pen.name}` : 'Chuồng không xác định'}</strong>
+            <span class="pill ${!pa.end_at ? 'pill-positive' : 'pill-neutral'}">${!pa.end_at ? 'Hiện tại' : 'Đã kết thúc'}</span>
+          </div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:2px;">
+            Từ: <span class="mono-code">${pa.start_at}</span> ${pa.end_at ? `đến <span class="mono-code">${pa.end_at}</span>` : ''}
+          </div>
+          <div style="font-size:11.5px; color:var(--faint);">Lý do: ${pa.assignment_reason || 'Điều chuyển thường kỳ'}</div>
+        `;
+        container.appendChild(row);
+      });
+      contentArea.appendChild(container);
+    }
+  } else if (tabKey === 'weights') {
+    // TAB 3: CÂN NẶNG
+    const weights = window.farmDB.getWeights(animal.id);
+    const container = document.createElement('div');
+    container.className = 'item-card';
+    container.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div class="item-card-title">Nhật ký cân nặng</div>
+        <button class="btn btn-outline btn-sm" onclick="openWeightModal('${animal.id}')">+ Cân mới</button>
+      </div>
+    `;
+
+    if (weights.length === 0) {
+      container.innerHTML += '<div style="color:var(--faint); font-size:12px; padding:12px 0; text-align:center;">Chưa có lần cân nào.</div>';
+    } else {
+      weights.slice().reverse().forEach(w => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--rule); font-size:12.5px;';
+        row.innerHTML = `
+          <div>
+            <div class="mono-code" style="color:var(--muted); font-size:12px;">${w.measured_at}</div>
+            <div style="font-size:11.5px; color:var(--faint);">${w.note || 'Cân định kỳ'} · Bởi: ${w.recorded_by}</div>
+          </div>
+          <strong class="num" style="font-size:15px; color:var(--accent);">${w.weight_value} ${w.weight_unit}</strong>
+        `;
+        container.appendChild(row);
+      });
+    }
+    contentArea.appendChild(container);
+  } else if (tabKey === 'breeding') {
+    // TAB 4: SINH SẢN
+    const litters = window.farmDB.getLittersForAnimal(animal.id);
+    const container = document.createElement('div');
+    container.className = 'item-card';
+    container.innerHTML = `<div class="item-card-title" style="margin-bottom:8px;">Lịch sử sinh sản & Lứa đẻ</div>`;
+
+    if (litters.length === 0) {
+      container.innerHTML += '<div style="color:var(--faint); font-size:12px; padding:12px 0; text-align:center;">Chưa có lứa đẻ nào được ghi nhận cho cá thể này.</div>';
+    } else {
+      litters.forEach(lit => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:8px 0; border-bottom:1px solid var(--rule); font-size:12.5px;';
+        row.innerHTML = `
+          <div style="display:flex; justify-content:space-between;">
+            <strong class="mono-code" style="color:var(--accent);">${lit.litter_code}</strong>
+            <span class="mono-code">${lit.birth_at}</span>
+          </div>
+          <div style="margin-top:2px;">Tổng: <strong class="num">${lit.total_born} con</strong> (Sống: <span style="color:var(--positive);">${lit.alive_count}</span>, Chết: <span style="color:var(--negative);">${lit.deceased_count}</span>)</div>
+          ${lit.notes ? `<div style="font-size:11.5px; color:var(--muted);">${lit.notes}</div>` : ''}
+        `;
+        container.appendChild(row);
+      });
+    }
+    contentArea.appendChild(container);
+  } else if (tabKey === 'pedigree') {
+    // TAB 5: PHẢ HỆ
+    const pedigree = window.farmDB.getPedigree(animal.id);
+    const allAnimals = window.farmDB.getAnimals();
+    const children = allAnimals.filter(a => a.father_id === animal.id || a.mother_id === animal.id);
+
+    contentArea.innerHTML = `
+      <div class="item-card">
+        <div class="item-card-title" style="margin-bottom:8px;">Bố & Mẹ</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div style="background:var(--raised); padding:8px 10px; border-radius:6px;">
+            <div style="font-size:11px; color:var(--muted);">Bố (Sire)</div>
+            ${pedigree.father ? `
+              <div onclick="openAnimalDetailView('${pedigree.father.id}')" style="cursor:pointer; font-weight:600; color:var(--accent); margin-top:2px;">
+                ${pedigree.father.animal_code} (Đực)
+              </div>
+            ` : '<div style="color:var(--faint); font-style:italic;">Chưa xác định</div>'}
+          </div>
+          <div style="background:var(--raised); padding:8px 10px; border-radius:6px;">
+            <div style="font-size:11px; color:var(--muted);">Mẹ (Dam)</div>
+            ${pedigree.mother ? `
+              <div onclick="openAnimalDetailView('${pedigree.mother.id}')" style="cursor:pointer; font-weight:600; color:var(--accent); margin-top:2px;">
+                ${pedigree.mother.animal_code} (Cái)
+              </div>
+            ` : '<div style="color:var(--faint); font-style:italic;">Chưa xác định</div>'}
+          </div>
+        </div>
+      </div>
+
+      <div class="item-card">
+        <div class="item-card-title" style="margin-bottom:8px;">Cá thể con (${children.length})</div>
+        ${children.length === 0 ? '<div style="color:var(--faint); font-size:12px; font-style:italic;">Chưa có con cháu trực tiếp trong hệ thống.</div>' : `
+          <div style="display:flex; flex-wrap:wrap; gap:6px;">
+            ${children.map(c => `
+              <span class="pill pill-accent" style="cursor:pointer; font-family:var(--mono);" onclick="openAnimalDetailView('${c.id}')">
+                ${c.animal_code} (${c.sex === 'MALE' ? 'Đực' : 'Cái'})
+              </span>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+  } else if (tabKey === 'health') {
+    // TAB 6: SỨC KHỎE
+    const records = window.farmDB.getHealthRecordsForAnimal(animal.id);
+    const container = document.createElement('div');
+    container.className = 'item-card';
+    container.innerHTML = `<div class="item-card-title" style="margin-bottom:8px;">Hồ sơ bệnh án & Sức khỏe</div>`;
+
+    if (records.length === 0) {
+      container.innerHTML += '<div style="color:var(--faint); font-size:12px; padding:12px 0; text-align:center;">Cá thể hoàn toàn khỏe mạnh, không có bệnh án.</div>';
+    } else {
+      records.forEach(hr => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:8px 0; border-bottom:1px solid var(--rule); font-size:12.5px;';
+        row.innerHTML = `
+          <div style="display:flex; justify-content:space-between;">
+            <span class="pill ${hr.severity === 'SEVERE' ? 'pill-negative' : 'pill-warning'}">${hr.severity}</span>
+            <span class="mono-code">${new Date(hr.detected_at).toLocaleDateString('vi-VN')}</span>
+          </div>
+          <div style="font-weight:500; margin:4px 0;">${hr.diagnosis_text}</div>
+          <div style="font-size:11.5px; color:var(--faint);">Ghi nhận: ${hr.recorded_by}</div>
+        `;
+        container.appendChild(row);
+      });
+    }
+    contentArea.appendChild(container);
+  } else if (tabKey === 'events') {
+    // TAB 7: NHẬT KÝ SỰ KIỆN
+    const events = window.farmDB.getEventsForAnimal(animal.id);
+    const container = document.createElement('div');
+    container.className = 'item-card';
+    container.innerHTML = `<div class="item-card-title" style="margin-bottom:8px;">Dòng thời gian sự kiện</div>`;
+
+    if (events.length === 0) {
+      container.innerHTML += '<div style="color:var(--faint); font-size:12px; padding:12px 0; text-align:center;">Chưa có sự kiện nào được ghi nhận.</div>';
+    } else {
+      events.forEach(ev => {
+        const row = document.createElement('div');
+        row.style.cssText = 'padding:8px 0; border-bottom:1px solid var(--rule); font-size:12.5px;';
+        row.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="pill ${ev.badgeClass}">${ev.type}</span>
+            <span class="mono-code" style="color:var(--faint); font-size:11.5px;">${new Date(ev.time).toLocaleDateString('vi-VN')}</span>
+          </div>
+          <div style="margin-top:4px; color:var(--text);">${ev.details}</div>
+        `;
+        container.appendChild(row);
+      });
+    }
+    contentArea.appendChild(container);
+  }
+}
+window.switchAnimalDetailTab = switchAnimalDetailTab;
 
 // ==========================================
 // 5. PENS SUB-MODULE
@@ -1186,6 +1473,7 @@ function submitAddWeight() {
     openAnimalDetailView(animalId);
   }
   renderAnimals();
+  renderDashboard();
 }
 window.submitAddWeight = submitAddWeight;
 
@@ -1433,6 +1721,7 @@ function submitCreateLitter() {
 
   closeModal('modalCreateLitter');
   renderBreeding();
+  renderDashboard();
 }
 window.submitCreateLitter = submitCreateLitter;
 

@@ -699,11 +699,50 @@ class FarmDB {
     const pens = this.getPens();
     const activePens = pens.filter(p => p.status === 'ACTIVE').length;
     const breedingPens = pens.filter(p => p.status === 'BREEDING').length;
-    const emptyPens = pens.filter(p => p.status === 'EMPTY').length;
+    const emptyPens = pens.filter(p => p.status === 'EMPTY' || this.getAnimalsInPen(p.id).length === 0).length;
     const quarantinePens = pens.filter(p => p.status === 'QUARANTINE').length;
 
     const openIncidents = (this.data.incidents || []).filter(i => i.status === 'OPEN' && i.incident_type === 'OFF_FEED');
     const deaths = (this.data.incidents || []).filter(i => i.incident_type === 'DEATH');
+
+    // Dúi mới sinh (sinh tại trại hoặc lứa đẻ)
+    const newBorns = animals.filter(a => a.origin_type === 'BORN');
+
+    // Tổng hợp hoạt động / công việc gần đây
+    const activities = [];
+    (this.data.incidents || []).forEach(inc => {
+      const an = this.getAnimalById(inc.animal_id);
+      activities.push({
+        type: 'INCIDENT',
+        title: inc.incident_type === 'DEATH' ? 'Ghi nhận dúi chết' : 'Ghi nhận dúi bỏ ăn',
+        desc: `${an ? an.animal_code : 'N/A'} - ${inc.symptoms_observed}`,
+        time: inc.detected_at,
+        badgeClass: inc.incident_type === 'DEATH' ? 'pill-negative' : 'pill-warning'
+      });
+    });
+
+    (this.data.weights || []).forEach(w => {
+      const an = this.getAnimalById(w.animal_id);
+      activities.push({
+        type: 'WEIGHT',
+        title: 'Cập nhật cân nặng',
+        desc: `${an ? an.animal_code : 'N/A'}: ${w.weight_value} ${w.weight_unit} (${w.note || 'Định kỳ'})`,
+        time: w.measured_at,
+        badgeClass: 'pill-accent'
+      });
+    });
+
+    (this.data.litters || []).forEach(lit => {
+      activities.push({
+        type: 'LITTER',
+        title: 'Ghi nhận lứa đẻ mới',
+        desc: `${lit.litter_code}: ${lit.total_born} con (Sống: ${lit.alive_count})`,
+        time: lit.birth_at,
+        badgeClass: 'pill-positive'
+      });
+    });
+
+    activities.sort((a, b) => new Date(b.time) - new Date(a.time));
 
     return {
       totalActiveAnimals: activeAnimals.length,
@@ -717,8 +756,59 @@ class FarmDB {
       quarantinePens,
       openOffFeedIncidents: openIncidents.length,
       totalDeaths: deaths.length,
-      recentIncidents: (this.data.incidents || []).slice(0, 5)
+      newBornCount: newBorns.length,
+      recentIncidents: (this.data.incidents || []).slice(0, 5),
+      recentActivities: activities.slice(0, 5)
     };
+  }
+
+  // --- TRUY VẤN LỊCH SỬ CHO HỒ SƠ CÁ THỂ ĐA TAB ---
+  getPenAssignmentHistory(animalId) {
+    return (this.data.pen_assignments || [])
+      .filter(pa => pa.animal_id === animalId)
+      .sort((a, b) => new Date(b.start_at) - new Date(a.start_at));
+  }
+
+  getLittersForAnimal(animalId) {
+    return (this.data.litters || [])
+      .filter(lit => lit.mother_animal_id === animalId || lit.father_animal_id === animalId)
+      .sort((a, b) => new Date(b.birth_at) - new Date(a.birth_at));
+  }
+
+  getHealthRecordsForAnimal(animalId) {
+    return (this.data.health_records || [])
+      .filter(hr => hr.animal_id === animalId)
+      .sort((a, b) => new Date(b.detected_at) - new Date(a.detected_at));
+  }
+
+  getEventsForAnimal(animalId) {
+    const events = [];
+    (this.data.incidents || []).filter(i => i.animal_id === animalId).forEach(i => {
+      events.push({
+        time: i.detected_at,
+        type: i.incident_type === 'DEATH' ? 'Tử vong' : 'Bỏ ăn',
+        badgeClass: i.incident_type === 'DEATH' ? 'pill-negative' : 'pill-warning',
+        details: i.symptoms_observed
+      });
+    });
+    (this.data.pen_assignments || []).filter(pa => pa.animal_id === animalId).forEach(pa => {
+      const pen = this.getPenById(pa.pen_id);
+      events.push({
+        time: pa.start_at,
+        type: 'Chuyển chuồng',
+        badgeClass: 'pill-neutral',
+        details: `Chuyển vào ${pen ? 'Chuồng ' + pen.pen_code : 'chuồng'} (${pa.assignment_reason || 'Điều chuyển'})`
+      });
+    });
+    (this.data.weights || []).filter(w => w.animal_id === animalId).forEach(w => {
+      events.push({
+        time: w.measured_at,
+        type: 'Cân nặng',
+        badgeClass: 'pill-accent',
+        details: `${w.weight_value} ${w.weight_unit} - ${w.note || 'Cân định kỳ'}`
+      });
+    });
+    return events.sort((a, b) => new Date(b.time) - new Date(a.time));
   }
 
   getZones() {

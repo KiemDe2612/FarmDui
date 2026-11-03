@@ -231,12 +231,24 @@ html, body {
   margin-top: 2px;
 }
 
-/* ---------- KPI CARDS ON MOBILE ---------- */
-.kpi-mobile-grid {
+/* ---------- KPI CARDS ON MOBILE (2x3 GRID) ---------- */
+.kpi-mobile-grid-6 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, 1fr);
   gap: 10px;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
+}
+
+@media (min-width: 600px) {
+  .kpi-mobile-grid-6 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .kpi-mobile-grid-6 {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 
 .kpi-card {
@@ -262,7 +274,7 @@ html, body {
 }
 
 .kpi-card-value {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   color: var(--text);
   margin-top: 4px;
@@ -272,6 +284,133 @@ html, body {
   font-size: 11px;
   color: var(--faint);
   margin-top: 2px;
+}
+
+/* ---------- ALERT LIST CARD ON DASHBOARD ---------- */
+.alert-list-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+
+.alert-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.alert-row:last-child {
+  border-bottom: none;
+}
+
+.alert-row:active {
+  background: var(--raised);
+}
+
+.alert-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.alert-row-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.alert-row-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ---------- HORIZONTAL SCROLLING TABS ---------- */
+.horizontal-tabs {
+  display: flex;
+  overflow-x: auto;
+  gap: 6px;
+  padding: 4px 0 10px 0;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.horizontal-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.horizontal-tab-btn {
+  white-space: nowrap;
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  min-height: 36px;
+  flex-shrink: 0;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  user-select: none;
+}
+
+.horizontal-tab-btn.active {
+  background: var(--text);
+  color: #ffffff;
+  border-color: var(--text);
+}
+
+/* ---------- ANIMAL CARD WITH AVATAR ---------- */
+.animal-card-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+
+.animal-profile-header-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-card);
+  padding: 16px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
+}
+
+.animal-profile-large-avatar {
+  width: 68px;
+  height: 68px;
+  border-radius: 12px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
 }
 
 /* ---------- QUICK ACTION BAR ---------- */
