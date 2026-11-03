@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Farm Management – Quản Lý Trang Trại Dúi v1.1</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- SIDEBAR NAVIGATION -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">🦔</div>
+      <div>
+        <div class="brand-title">Dúi Farm Pro</div>
+        <div class="brand-sub">Quản Lý Trang Trại v1.1</div>
+      </div>
+    </div>
+
+    <ul class="nav-menu">
+      <li class="nav-item">
+        <a class="nav-link active" data-tab="tab-dashboard">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Tổng Quan (Dashboard)</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-map">
+          <span class="nav-icon">🗺️</span>
+          <span class="nav-text">Sơ Đồ Chuồng 2D</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-pens">
+          <span class="nav-icon">🛖</span>
+          <span class="nav-text">Danh Mục Chuồng</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-animals">
+          <span class="nav-icon">🦔</span>
+          <span class="nav-text">Hồ Sơ Cá Thể</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-breeding">
+          <span class="nav-icon">🧬</span>
+          <span class="nav-text">Sinh Sản & Phả Hệ</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-health">
+          <span class="nav-icon">🩺</span>
+          <span class="nav-text">Sức Khỏe & Thuốc</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-incidents">
+          <span class="nav-icon">⚠️</span>
+          <span class="nav-text">Nhật Ký Sự Cố</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-search">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Tìm Kiếm Thông Minh</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-ai">
+          <span class="nav-icon">🤖</span>
+          <span class="nav-text">Trợ Lý AI Trang Trại</span>
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link" data-tab="tab-backup">
+          <span class="nav-icon">💾</span>
+          <span class="nav-text">Sao Lưu & Dữ Liệu</span>
+        </a>
+      </li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div>Đơn vị: Trại Dúi Mẫu VN</div>
+      <div style="margin-top:4px; font-size:11px;">Offline-Ready PWA Architecture</div>
+    </div>
+  </aside>
+
+  <!-- MAIN WRAPPER -->
+  <div class="main-wrapper">
+    <!-- Topbar -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1 class="page-title" id="pageTitle">Tổng Quan (Dashboard)</h1>
+      </div>
+      <div class="topbar-search">
+        <span>🔍</span>
+        <input type="text" id="topSearchInput" placeholder="Tìm cá thể (D001), chuồng, bệnh...">
+      </div>
+      <div class="topbar-right">
+        <span class="badge-offline">Sẵn Sàng Ngoại Tuyến (Offline Ready)</span>
+      </div>
+    </header>
+
+    <!-- CONTENT CONTAINER -->
+    <main class="content-container">
+
+      <!-- TAB 1: DASHBOARD -->
+      <section id="tab-dashboard" class="tab-content active">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-icon blue">🦔</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statTotalAnimals">0</div>
+              <div class="stat-label">Tổng cá thể đang nuôi</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;" id="statSexRatio">Đực: 0 | Cái: 0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon purple">🛖</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statTotalPens">0</div>
+              <div class="stat-label">Ô chuồng đang sử dụng</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;" id="statPenDetails">Đẻ: 0 | Trống: 0</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon amber">⚠️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statOpenIncidents">0</div>
+              <div class="stat-label">Ca bỏ ăn (OFF_FEED) mở</div>
+              <div style="font-size:11px; color:#b45309; margin-top:2px;">Cần theo dõi sát</div>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon red">☠️</div>
+            <div class="stat-info">
+              <div class="stat-value" id="statTotalDeaths">0</div>
+              <div class="stat-label">Số ca tử vong (DEATH)</div>
+              <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">Lịch sử bảo lưu đầy đủ</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-bottom:20px;">
+          <button class="btn btn-primary" onclick="openAddAnimalModal()">+ Thêm Cá Thể Mới</button>
+          <button class="btn btn-outline" onclick="openIncidentModal('OFF_FEED')">⚠️ Báo Dúi Bỏ Ăn</button>
+          <button class="btn btn-danger" onclick="openIncidentModal('DEATH')">☠️ Báo Dúi Chết</button>
+          <button class="btn btn-outline" onclick="openCreateLitterModal()">🧬 Khai Sinh Lứa Đẻ</button>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Sự Cố Trang Trại Gần Đây</h2>
+            <button class="btn btn-outline btn-sm" onclick="switchTab('tab-incidents', 'Nhật Ký Sự Cố')">Xem tất cả</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Loại sự cố</th>
+                  <th>Mã cá thể</th>
+                  <th>Biểu hiện quan sát</th>
+                  <th>Thời điểm ghi nhận</th>
+                  <th>Trạng thái</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardRecentIncidentsBody">
+                <!-- Dynamic Content -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 2: FARM MAP 2D -->
+      <section id="tab-map" class="tab-content">
+        <div class="map-toolbar">
+          <div class="map-tools-group">
+            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.zoomIn()">🔍+ Phóng to</button>
+            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.zoomOut()">🔍- Thu nhỏ</button>
+            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.resetZoom()">↩ Đặt lại</button>
+            <span style="border-left:1px solid #cbd5e1; height:20px; margin:0 4px;"></span>
+            <label style="font-size:12px; display:flex; align-items:center; gap:6px; cursor:pointer;">
+              <input type="checkbox" id="gridSnapCheckbox" checked onchange="mapEditorInstance.setGridMode(this.checked)"> Hít lưới (Snap Grid)
+            </label>
+          </div>
+          <div class="map-tools-group">
+            <button class="btn btn-primary btn-sm" onclick="mapEditorInstance.addBlock('PEN')">+ Thêm Chuồng (PEN)</button>
+            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.addBlock('ZONE')">+ Thêm Khu Vực (ZONE)</button>
+            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.addBlock('PATH')">+ Thêm Lối Đi (PATH)</button>
+            <button class="btn btn-danger btn-sm" onclick="mapEditorInstance.deleteSelectedBlock()">Xóa khối chọn</button>
+            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.exportPNG()">📷 Xuất Ảnh Sơ Đồ</button>
+          </div>
+        </div>
+
+        <div style="display:flex; gap:16px;">
+          <div class="canvas-container" style="flex:1;">
+            <canvas id="farmCanvas"></canvas>
+          </div>
+          <div class="card" style="width:300px; margin:0; border-radius:0 0 var(--radius) var(--radius); border-top:none;">
+            <div class="card-header">
+              <h3 class="card-title" style="font-size:14px;">Thông Tin Chuồng Chọn</h3>
+            </div>
+            <div id="mapSelectedPenInfo" style="font-size:13px; line-height:1.6;">
+              <span style="color:#94a3b8; font-style:italic;">Bấm vào một ô chuồng trên bản đồ để xem danh sách cá thể bên trong</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 3: DANH MỤC CHUỒNG (PENS) -->
+      <section id="tab-pens" class="tab-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div style="font-size:14px; color:var(--text-muted);">Quản lý ô chuồng, sức chứa tối đa và cá thể đang cư trú theo thời gian thực</div>
+          <button class="btn btn-primary btn-sm" onclick="alert('Để thêm chuồng mới vào hệ thống, hãy mở tab Sơ Đồ 2D và bấm Thêm Chuồng!')">+ Thêm Chuồng</button>
+        </div>
+        <div class="stat-grid" id="pensGridContainer" style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));">
+          <!-- Rendered in app.js -->
+        </div>
+      </section>
+
+      <!-- TAB 4: HỒ SƠ CÁ THỂ (ANIMALS) -->
+      <section id="tab-animals" class="tab-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div style="font-size:14px; color:var(--text-muted);">Quản lý định danh từng cá thể (UUID + Mã hiển thị Dxxx). Không xóa cứng dữ liệu lịch sử.</div>
+          <button class="btn btn-primary" onclick="openAddAnimalModal()">+ Thêm Cá Thể Mới</button>
+        </div>
+        <div class="card">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã Dúi</th>
+                  <th>Tên gọi</th>
+                  <th>Chủng loài</th>
+                  <th>Giới tính</th>
+                  <th>Ngày sinh</th>
+                  <th>Chuồng hiện tại</th>
+                  <th>Cân nặng gần nhất</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="animalsTableBody">
+                <!-- Rendered in app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 5: SINH SẢN & PHẢ HỆ -->
+      <section id="tab-breeding" class="tab-content">
+        <!-- Công cụ kiểm tra cận huyết -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">🔍 Kiểm Tra Nguy Cơ Trùng Huyết (Inbreeding Checker)</h2>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:16px; align-items:end;">
+            <div class="form-group" style="margin:0;">
+              <label class="form-label">Chọn Đực Giống (Male):</label>
+              <select id="inbreedMaleSelect" class="form-control"></select>
+            </div>
+            <div class="form-group" style="margin:0;">
+              <label class="form-label">Chọn Cái Sinh Sản (Female):</label>
+              <select id="inbreedFemaleSelect" class="form-control"></select>
+            </div>
+            <div>
+              <button class="btn btn-primary" onclick="checkInbreeding()">Kiểm Tra Phả Hệ</button>
+            </div>
+          </div>
+          <div id="inbreedingResult" style="margin-top:16px;"></div>
+        </div>
+
+        <!-- Danh sách lứa đẻ -->
+        <div class="card">
+          <div class="card-header">
+            <h2 class="card-title">Danh Sách Lứa Đẻ (Litters)</h2>
+            <button class="btn btn-primary btn-sm" onclick="openCreateLitterModal()">+ Ghi Nhận Lứa Mới</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã lứa</th>
+                  <th>Ngày đẻ</th>
+                  <th>Mẹ</th>
+                  <th>Bố</th>
+                  <th>Số con sinh (Sống/Chết)</th>
+                  <th>Ghi chú</th>
+                  <th>Thao tác tách đàn</th>
+                </tr>
+              </thead>
+              <tbody id="littersTableBody">
+                <!-- Rendered in app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 6: SỨC KHỎE & THUỐC -->
+      <section id="tab-health" class="tab-content">
+        <div style="display:grid; grid-template-columns: 1fr 1.2fr; gap:20px;">
+          <!-- Thư viện thuốc tham khảo -->
+          <div>
+            <div class="card-header" style="border:none; padding:0; margin-bottom:12px;">
+              <h2 class="card-title">💊 Thư Viện Thuốc Tham Khảo (Reference Library)</h2>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:14px;">
+              * Lưu ý: Thư viện chỉ nhằm mục đích tra cứu thông tin hoạt chất và cảnh báo, không quản lý tồn kho hay nhập xuất vật tư.
+            </div>
+            <div id="medicinesContainer">
+              <!-- Rendered in app.js -->
+            </div>
+          </div>
+
+          <!-- Bệnh án & điều trị -->
+          <div>
+            <div class="card">
+              <div class="card-header">
+                <h2 class="card-title">🩺 Bệnh Án & Theo Dõi Sức Khỏe</h2>
+              </div>
+              <div class="table-responsive">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th>Cá thể</th>
+                      <th>Ngày phát hiện</th>
+                      <th>Chẩn đoán quan sát</th>
+                      <th>Mức độ</th>
+                      <th>Người ghi</th>
+                      <th>Trạng thái</th>
+                    </tr>
+                  </thead>
+                  <tbody id="healthRecordsTableBody">
+                    <!-- Rendered in app.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 7: NHẬT KÝ SỰ CỐ (CHỈ 2 LOẠI: OFF_FEED & DEATH) -->
+      <section id="tab-incidents" class="tab-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+          <div>
+            <div style="font-size:16px; font-weight:700; color:var(--dark);">Nhật Ký Sự Cố Chăn Nuôi</div>
+            <div style="font-size:12px; color:var(--text-muted);">Quy chuẩn bắt buộc: Chỉ gồm 2 loại sự cố: Dúi Bỏ Ăn (<code>OFF_FEED</code>) và Dúi Chết (<code>DEATH</code>).</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-outline" onclick="openIncidentModal('OFF_FEED')">⚠️ Báo Dúi Bỏ Ăn</button>
+            <button class="btn btn-danger" onclick="openIncidentModal('DEATH')">☠️ Báo Dúi Chết</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Phân loại</th>
+                  <th>Cá thể</th>
+                  <th>Chuồng</th>
+                  <th>Thời gian phát hiện</th>
+                  <th>Biểu hiện cụ thể</th>
+                  <th>Biện pháp xử lý</th>
+                  <th>Trạng thái</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="incidentsTableBody">
+                <!-- Rendered in app.js -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 8: TÌM KIẾM THÔNG MINH -->
+      <section id="tab-search" class="tab-content">
+        <div class="card">
+          <div style="display:flex; gap:12px; margin-bottom:16px;">
+            <input type="text" id="mainSearchInput" class="form-control" style="font-size:15px; padding:12px;" placeholder="Gõ từ khóa: mã D001, chuồng A01, tiêu chảy, phân lỏng, bỏ ăn, men tiêu hóa...">
+            <button class="btn btn-primary" id="mainSearchBtn" style="padding:0 24px;">Tìm Kiếm</button>
+          </div>
+          <div style="font-size:12px; color:var(--text-muted); display:flex; justify-content:space-between;">
+            <span>* Hỗ trợ tìm tiếng Việt không dấu, tìm mờ và tra cứu từ đồng nghĩa bệnh lý.</span>
+            <span id="searchStats" style="font-weight:600; color:var(--dark);"></span>
+          </div>
+        </div>
+
+        <div id="searchResultsContainer">
+          <!-- Search Results -->
+        </div>
+      </section>
+
+      <!-- TAB 9: TRỢ LÝ AI TRANG TRẠI -->
+      <section id="tab-ai" class="tab-content">
+        <div class="chat-window">
+          <div class="chat-messages" id="aiChatMessages">
+            <div class="chat-bubble bot">
+              <div>Xin chào! Tôi là <strong>Trợ Lý AI Quản Lý Trang Trại Dúi</strong>. Tôi có thể hỗ trợ tra cứu dữ liệu số lượng, thông tin hồ sơ từng cá thể, kiểm tra các ca bỏ ăn đang mở hoặc cung cấp thông tin tra cứu y tế tham khảo. Hãy đặt câu hỏi cho tôi!</div>
+            </div>
+          </div>
+
+          <div style="padding: 10px 16px 0 16px; background:#ffffff;">
+            <div class="quick-prompts">
+              <span class="prompt-pill">Thống kê số lượng hiện tại</span>
+              <span class="prompt-pill">Thông tin cá thể D001</span>
+              <span class="prompt-pill">Các ca bỏ ăn đang mở</span>
+              <span class="prompt-pill">Tra cứu thông tin thuốc</span>
+              <span class="prompt-pill">Quy tắc chống cận huyết</span>
+            </div>
+          </div>
+
+          <div class="chat-input-bar">
+            <input type="text" id="aiChatInput" class="form-control" placeholder="Hỏi trợ lý AI (ví dụ: 'Thống kê trại', 'Con D007 bị làm sao?')...">
+            <button class="btn btn-primary" id="aiChatSendBtn">Gửi</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 10: SAO LƯU & DỮ LIỆU -->
+      <section id="tab-backup" class="tab-content">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom:24px;">
+          <div class="card" style="margin:0;">
+            <div class="card-header">
+              <h2 class="card-title">📦 Xuất & Nhập Dữ Liệu (Backup JSON)</h2>
+            </div>
+            <div style="font-size:13px; color:var(--text-muted); margin-bottom:16px;">
+              Dữ liệu của bạn được lưu an toàn trên máy cục bộ (Offline LocalStore). Bạn có thể xuất file sao lưu định kỳ để bảo vệ dữ liệu.
+            </div>
+            <div style="display:flex; flex-direction:column; gap:10px;">
+              <button class="btn btn-primary" id="btnExportJSON">⬇️ Tải Xuống File Sao Lưu JSON</button>
+              <label class="btn btn-outline" style="text-align:center; cursor:pointer;">
+                ⬆️ Khôi Phục Dữ Liệu Từ File JSON
+                <input type="file" id="fileImportInput" accept=".json" style="display:none;">
+              </label>
+              <button class="btn btn-outline" id="btnResetDefault" style="color:var(--danger); border-color:#fca5a5;">⚠️ Khôi Phục Dữ Liệu Mẫu Ban Đầu</button>
+            </div>
+          </div>
+
+          <div class="card" style="margin:0;">
+            <div class="card-header">
+              <h2 class="card-title">📜 Nhật Ký Hoạt Động (Audit Trail)</h2>
+            </div>
+            <div class="table-responsive" style="max-height:220px; overflow-y:auto;">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>Thời gian</th>
+                    <th>Người thực hiện</th>
+                    <th>Hành động</th>
+                    <th>Chi tiết</th>
+                  </tr>
+                </thead>
+                <tbody id="auditLogsTableBody">
+                  <!-- Rendered in app.js -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- MODALS -->
+
+  <!-- Modal 1: Xem hồ sơ cá thể -->
+  <div id="modalAnimalProfile" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="card-title">Hồ Sơ Cá Thể: <span id="profileAnimalCode" style="color:var(--primary);"></span></h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalAnimalProfile')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:16px; font-size:13px;">
+          <div><strong>Tên gọi:</strong> <span id="profileAnimalName"></span></div>
+          <div><strong>Giống loài:</strong> <span id="profileSpecies"></span></div>
+          <div><strong>Giới tính:</strong> <span id="profileSex"></span></div>
+          <div><strong>Ngày sinh:</strong> <span id="profileDOB"></span></div>
+          <div><strong>Nguồn gốc:</strong> <span id="profileOrigin"></span></div>
+          <div><strong>Trạng thái:</strong> <span id="profileStatus"></span></div>
+          <div><strong>Chuồng hiện tại:</strong> <span id="profilePen"></span></div>
+          <div><strong>Phả hệ:</strong> <span id="profileParents"></span></div>
+        </div>
+        <div style="font-size:13px; margin-bottom:16px;">
+          <strong>Ghi chú:</strong> <span id="profileNotes"></span>
+        </div>
+        <div>
+          <div style="font-weight:700; font-size:13px; margin-bottom:8px;">Lịch Sử Cân Nặng:</div>
+          <table class="table" style="font-size:12px;">
+            <thead>
+              <tr>
+                <th>Ngày cân</th>
+                <th>Trọng lượng</th>
+                <th>Người ghi</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody id="profileWeightsTbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalAnimalProfile')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 2: Thêm cá thể mới -->
+  <div id="modalAddAnimal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="card-title">Thêm Mới Cá Thể Dúi</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalAddAnimal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Mã Định Danh Duy Nhất (Mã Dúi) *:</label>
+          <input type="text" id="newAnimalCode" class="form-control" placeholder="D008">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tên gọi / Biệt danh tùy chọn:</label>
+          <input type="text" id="newAnimalName" class="form-control" placeholder="Đực Cồ B3">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Giống loài:</label>
+            <select id="newAnimalSpecies" class="form-control">
+              <option value="Dúi Mốc Lớn">Dúi Mốc Lớn</option>
+              <option value="Dúi Má Đào">Dúi Má Đào</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Giới tính:</label>
+            <select id="newAnimalSex" class="form-control">
+              <option value="MALE">Đực (Male)</option>
+              <option value="FEMALE">Cái (Female)</option>
+              <option value="UNKNOWN">Chưa xác định</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Ngày sinh:</label>
+            <input type="date" id="newAnimalDOB" class="form-control">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Nguồn gốc:</label>
+            <select id="newAnimalOrigin" class="form-control">
+              <option value="PURCHASED">Mua ngoài</option>
+              <option value="BORN">Sinh tại trại</option>
+              <option value="OTHER">Khác</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Phân bổ chuồng ban đầu:</label>
+          <select id="newAnimalPenSelect" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ghi chú đặc điểm:</label>
+          <textarea id="newAnimalNotes" class="form-control" rows="2" placeholder="Đặc điểm ngoại hình, tình trạng sức khỏe ban đầu..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalAddAnimal')">Hủy</button>
+        <button class="btn btn-primary" onclick="submitAddAnimal()">Lưu Cá Thể</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 3: Thêm cân nặng -->
+  <div id="modalAddWeight" class="modal-overlay">
+    <div class="modal-card" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 class="card-title">Ghi Nhận Cân Nặng</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalAddWeight')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="weightAnimalId">
+        <div style="font-size:14px; margin-bottom:14px;">Cá thể: <strong id="weightAnimalLabel" style="color:var(--primary);"></strong></div>
+        <div class="form-group">
+          <label class="form-label">Trọng lượng (kg) *:</label>
+          <input type="number" id="weightValueInput" step="0.05" class="form-control" placeholder="1.85">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ghi chú theo dõi:</label>
+          <input type="text" id="weightNoteInput" class="form-control" placeholder="Cân định kỳ tháng, ăn uống khỏe...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalAddWeight')">Hủy</button>
+        <button class="btn btn-primary" onclick="submitAddWeight()">Lưu Cân Nặng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 4: Chuyển chuồng -->
+  <div id="modalTransferAnimal" class="modal-overlay">
+    <div class="modal-card" style="max-width:460px;">
+      <div class="modal-header">
+        <h3 class="card-title">Điều Chuyển Chuồng Cho Dúi</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalTransferAnimal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="transferAnimalId">
+        <div style="font-size:14px; margin-bottom:6px;">Cá thể: <strong id="transferAnimalLabel" style="color:var(--primary);"></strong></div>
+        <div style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">Chuồng hiện tại: <span id="transferCurrentPen"></span></div>
+        <div class="form-group">
+          <label class="form-label">Chọn Chuồng Đích Mới *:</label>
+          <select id="transferPenSelect" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lý do chuyển chuồng:</label>
+          <input type="text" id="transferReasonInput" class="form-control" placeholder="Ghép đôi sinh sản / Tách nuôi con / Chuyển cách ly...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalTransferAnimal')">Hủy</button>
+        <button class="btn btn-primary" onclick="submitTransferAnimal()">Xác Nhận Chuyển</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 5: Ghi nhận sự cố (OFF_FEED & DEATH) -->
+  <div id="modalCreateIncident" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="card-title" id="incidentModalTitle">Ghi Nhận Sự Cố</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalCreateIncident')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="incidentTypeInput">
+
+        <div id="incidentDeathWarning" style="display:none; background:var(--danger-light); color:var(--danger); padding:12px; border-radius:8px; font-size:12.5px; margin-bottom:14px; border:1px solid #fca5a5;">
+          ⚠️ <strong>LƯU Ý NGHIÊP VỤ QUAN TRỌNG:</strong> Khi xác nhận cá thể tử vong, hệ thống sẽ tự động cập nhật trạng thái cá thể sang <code>DECEASED</code>, giải phóng chuồng đang ở và lưu vết vĩnh viễn trong lịch sử. Tuyệt đối không xóa hồ sơ.
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Chọn Cá Thể Bị Sự Cố *:</label>
+          <select id="incidentAnimalSelect" class="form-control"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Triệu Chứng / Biểu Hiện Quan Sát Được *:</label>
+          <textarea id="incidentSymptomsInput" class="form-control" rows="3" placeholder="Bỏ ăn mía 2 ngày, phân ướt/khô, ít vận động, nằm góc..."></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Biện Pháp Xử Lý Ban Đầu:</label>
+          <input type="text" id="incidentActionsInput" class="form-control" placeholder="Đưa sang chuồng cách ly, cho uống men tiêu hóa...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalCreateIncident')">Hủy</button>
+        <button class="btn btn-primary" onclick="submitCreateIncident()">Lưu Sự Cố</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 6: Thêm cập nhật theo dõi sự cố -->
+  <div id="modalAddFollowUp" class="modal-overlay">
+    <div class="modal-card" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 class="card-title">Cập Nhật Theo Dõi Ca Bỏ Ăn</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalAddFollowUp')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="followUpIncidentId">
+        <div class="form-group">
+          <label class="form-label">Nội dung theo dõi diễn biến:</label>
+          <textarea id="followUpNoteInput" class="form-control" rows="3" placeholder="Đã ăn lại được mẩu mía nhỏ, phân bắt đầu thành khuôn..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalAddFollowUp')">Hủy</button>
+        <button class="btn btn-primary" onclick="submitAddFollowUp()">Lưu Theo Dõi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 7: Đóng ca sự cố -->
+  <div id="modalCloseIncident" class="modal-overlay">
+    <div class="modal-card" style="max-width:440px;">
+      <div class="modal-header">
+        <h3 class="card-title">Đóng Ca Sự Cố Bỏ Ăn</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalCloseIncident')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="closeIncidentId">
+        <div class="form-group">
+          <label class="form-label">Kết quả xử lý & tình trạng hồi phục:</label>
+          <textarea id="closeOutcomeInput" class="form-control" rows="3" placeholder="Dúi đã hoàn toàn bình phục, ăn uống bình thường, đưa về chuồng cũ..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalCloseIncident')">Hủy</button>
+        <button class="btn btn-success" onclick="submitCloseIncident()">Xác Nhận Đóng Ca</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 8: Khai sinh lứa đẻ -->
+  <div id="modalCreateLitter" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="card-title">Ghi Nhận Lứa Đẻ Mới</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalCreateLitter')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Mã Lứa Đẻ *:</label>
+          <input type="text" id="litterCodeInput" class="form-control" placeholder="LIT-2026-02">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Mẹ *:</label>
+            <select id="litterMotherSelect" class="form-control"></select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bố (Nếu biết):</label>
+            <select id="litterFatherSelect" class="form-control"></select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ngày sinh *:</label>
+          <input type="date" id="litterBirthDateInput" class="form-control">
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label class="form-label">Tổng số con:</label>
+            <input type="number" id="litterTotalBornInput" class="form-control" value="3">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số con sống:</label>
+            <input type="number" id="litterAliveCountInput" class="form-control" value="3">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số con chết:</label>
+            <input type="number" id="litterDeceasedCountInput" class="form-control" value="0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ghi chú:</label>
+          <input type="text" id="litterNotesInput" class="form-control" placeholder="Tình trạng mẹ sau sinh, bú tốt...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalCreateLitter')">Hủy</button>
+        <button class="btn btn-primary" onclick="submitCreateLitter()">Lưu Lứa Đẻ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 9: Cấp mã ID cho con non (Tách đàn) -->
+  <div id="modalRegisterLitterMember" class="modal-overlay">
+    <div class="modal-card" style="max-width:460px;">
+      <div class="modal-header">
+        <h3 class="card-title">Cấp Mã Định Danh Cho Dúi Con</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalRegisterLitterMember')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="registerMemberLitterId">
+        <div class="form-group">
+          <label class="form-label">Mã ID Cá Thể Mới *:</label>
+          <input type="text" id="registerMemberCodeInput" class="form-control" placeholder="D008">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tên gọi / Biệt danh tùy chọn:</label>
+          <input type="text" id="registerMemberNameInput" class="form-control" placeholder="Dúi con lứa 2">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Giới tính phân loại:</label>
+          <select id="registerMemberSexSelect" class="form-control">
+            <option value="MALE">Đực (Male)</option>
+            <option value="FEMALE">Cái (Female)</option>
+            <option value="UNKNOWN">Chưa xác định</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Chuồng chuyển đến sau tách đàn:</label>
+          <select id="registerMemberPenSelect" class="form-control"></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalRegisterLitterMember')">Hủy</button>
+        <button class="btn btn-primary" onclick="submitRegisterLitterMember()">Cấp Mã & Lưu</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="js/db.js"></script>
+  <script src="js/search.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
