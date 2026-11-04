@@ -90,3 +90,4 @@
 | 430 × 932 | iPhone 14 / 15 / 16 Pro Max | Tận dụng chiều rộng tối đa, cỡ chữ rõ nét |
 | 768 × 1024 | iPad / Tablet Android | Co giãn linh hoạt, không vỡ layout |
 | Desktop | Laptop / PC màn hình rộng | Chuột wheel pan/zoom bình thường, giữ thanh điều hướng |
+

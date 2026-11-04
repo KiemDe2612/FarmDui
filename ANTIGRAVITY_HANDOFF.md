@@ -45,7 +45,8 @@ Mọi thành viên trang trại (Admin, Manager, Staff) đều có thể sử d�
 1. **Lỗi chọn nhầm & kéo lệch chuồng trên di động:** Trước đây khi vuốt màn hình trên điện thoại, ngón tay chạm trúng ô chuồng dễ làm dịch chuyển chuồng. Đã giải quyết bằng chế độ xem (View Mode) mặc định an toàn cho Staff và phân biệt ngưỡng Single Tap ($< 8\text{px}$).
 2. **Lỗi bảng dữ liệu tràn màn hình (Horizontal Scrolling):** Trước đây bảng danh sách cá thể và chuồng nuôi có nhiều cột gây tràn màn hình 360px–412px. Đã chuyển đổi hoàn toàn sang hệ thống thẻ Card thanh lịch, hiển thị đầy đủ thông tin quan trọng.
 3. **Lỗi thiếu thông tin chuyên sâu của cá thể:** Modal xem cá thể cũ quá nhỏ và không chứa đủ lịch sử. Đã thay thế bằng Slide-Over toàn màn hình với 7 tabs chuyên biệt (Thông tin, Lịch sử chuồng, Cân nặng, Sinh sản, Phả hệ, Sức khỏe, Sự kiện).
-4. **Lỗi linter taste-skill:** Đã thay thế các ký hiệu unicode và emoji bằng icon SVG và nhãn tiếng Việt rõ ràng, đưa kết quả lint về **0 FAIL**.
+4. **Lỗi chạm viền và hiển thị đè modal:** Các modal form (Thêm cá thể, Cân nặng, Chuyển chuồng, Báo sự cố, Lứa đẻ...) trước đó bị thiếu định nghĩa CSS cho class `.modal-overlay` và `.modal-card`, khiến các form hiển thị cố định ở luồng tài liệu cuối trang, chạm sát viền mép màn hình và xếp chồng lên nhau. Đã khắc phục triệt để bằng bộ style `.modal-overlay` (phủ toàn màn hình `position: fixed; inset: 0`, ẩn mặc định, chỉ hiển thị khi có lớp `.active`, hỗ trợ chạm nền để đóng) và `.modal-card` trượt mượt mà dạng Bottom Sheet từ đáy màn hình, có khoảng cách đệm và hỗ trợ Safe Area.
+5. **Lỗi linter taste-skill:** Đã thay thế các ký hiệu unicode và emoji bằng icon SVG và nhãn tiếng Việt rõ ràng, đưa kết quả lint về **0 FAIL**.
 
 ---
 
@@ -98,3 +99,4 @@ Toàn bộ mã nguồn đã được quản lý phiên bản qua Git:
   git revert HEAD
   ```
 - Hoặc sử dụng tính năng **Tải xuống file sao lưu JSON** trong mục "Khác $\to$ Dữ liệu & Sao lưu" trước khi thực hiện bất kỳ thay đổi nào.
+
