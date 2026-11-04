@@ -126,7 +126,16 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 7. Initial View Render
+  // 7. Modal backdrop click to close
+  document.querySelectorAll('.modal-overlay').forEach(modal => {
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.remove('active');
+      }
+    });
+  });
+
+  // 8. Initial View Render
   renderDashboard();
 });
 
