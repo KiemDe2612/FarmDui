@@ -836,6 +836,7 @@ textarea.form-control {
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border);
   margin-bottom: 14px;
+  flex-shrink: 0;
 }
 
 .panel-title {
@@ -845,6 +846,8 @@ textarea.form-control {
 }
 
 .modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-right: 4px;
@@ -861,6 +864,7 @@ textarea.form-control {
   padding-top: 14px;
   border-top: 1px solid var(--border);
   margin-top: 14px;
+  flex-shrink: 0;
 }
 
 .modal-footer .btn {
