@@ -24,7 +24,8 @@ document.addEventListener('DOMContentLoaded', () => {
       onlineDot.style.background = isOnline ? 'var(--positive)' : 'var(--negative)';
     }
     if (syncStatusText) {
-      syncStatusText.textContent = isOnline ? 'Đã đồng bộ' : 'Ngoại tuyến';
+      syncStatusText.textContent = isOnline ? 'Lưu trên máy' : 'Ngoại tuyến';
+      syncStatusText.title = isOnline ? 'Dữ liệu đang lưu trên điện thoại này. Chưa có máy chủ để đồng bộ với thiết bị khác.' : 'Không có mạng. App vẫn dùng bình thường, dữ liệu lưu trên điện thoại.';
     }
   };
   window.addEventListener('online', updateOnline);
@@ -105,10 +106,10 @@ document.addEventListener('DOMContentLoaded', () => {
       reader.onload = (event) => {
         try {
           window.farmDB.importDataJSON(event.target.result);
-          alert('Khôi phục dữ liệu từ file JSON thành công!');
+          appNotice('Khôi phục dữ liệu từ file JSON thành công!');
           location.reload();
         } catch (err) {
-          alert('Lỗi: ' + err.message);
+          appNotice('Lỗi: ' + err.message);
         }
       };
       reader.readAsText(file);
@@ -120,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     btnReset.addEventListener('click', () => {
       if (confirm('Khôi phục dữ liệu mẫu gốc? Mọi thay đổi hiện tại sẽ được làm mới.')) {
         window.farmDB.resetToDefault();
-        alert('Đã khôi phục dữ liệu mẫu gốc thành công.');
+        appNotice('Đã khôi phục dữ liệu mẫu gốc thành công.');
         location.reload();
       }
     });
@@ -186,15 +187,7 @@ function switchTab(tabId, title) {
 
   // Special handling for 2D Map Canvas
   if (tabId === 'tab-map') {
-    setTimeout(() => {
-      if (!mapEditorInstance) {
-        mapEditorInstance = new FarmMapEditor('farmCanvas', window.farmDB);
-        window.mapEditorInstance = mapEditorInstance;
-      } else {
-        mapEditorInstance.resizeCanvas();
-        mapEditorInstance.fitToScreen();
-      }
-    }, 80);
+    setTimeout(() => MapUI.onTabShown(), 80);
   }
 
   renderCurrentTab(tabId);
@@ -280,10 +273,7 @@ function changeRole(role) {
   updateRoleUI(role);
 
   // If map is currently in Edit mode but new role cannot edit map, revert to View mode
-  if (mapEditorInstance && mapEditorInstance.isEditMode && !window.farmDB.canEditMap()) {
-    mapEditorInstance.setEditMode(false);
-    updateMapModeUI(false);
-  }
+  if (window.MapUI) MapUI.onRoleChanged();
 
   renderCurrentTab(currentActiveTab);
 }
@@ -407,6 +397,7 @@ window.onSelectPenBlock = function(penId) {
   const pen = window.farmDB.getPenById(penId);
   if (!pen) return;
   const animals = window.farmDB.getAnimalsInPen(penId);
+  window.currentSheetPenId = penId;
 
   const zone = pen.zone_id ? window.farmDB.getZones().find(z => z.id === pen.zone_id) : null;
 
@@ -473,10 +464,7 @@ window.onSelectPenBlock = function(penId) {
   }
 
   if (sheetTransferBtn) {
-    sheetTransferBtn.onclick = () => {
-      closeMapSheet();
-      openTransferModalForPen(pen.id);
-    };
+    sheetTransferBtn.onclick = () => MapUI.openPenAnimals(pen.id);
   }
 
   // Open Bottom Sheet
@@ -492,7 +480,8 @@ function closeMapSheet() {
   if (sheet) sheet.classList.remove('open');
   if (backdrop) backdrop.classList.remove('open');
 
-  if (mapEditorInstance) {
+  window.currentSheetPenId = null;
+  if (mapEditorInstance && !mapEditorInstance.isEditMode) {
     mapEditorInstance.selectedBlock = null;
     mapEditorInstance.requestRender();
   }
@@ -504,46 +493,18 @@ window.onDeselectBlock = function() {
 };
 
 function toggleMapEditMode() {
-  if (!window.farmDB.canEditMap()) {
-    alert('Chỉ Admin và Manager mới có quyền bật Chế độ chỉnh sửa sơ đồ chuồng. Nhân viên (Staff) chỉ được sử dụng Chế độ xem an toàn.');
-    return;
-  }
-
-  if (!mapEditorInstance) {
-    mapEditorInstance = new FarmMapEditor('farmCanvas', window.farmDB);
-    window.mapEditorInstance = mapEditorInstance;
-  }
-
-  const isEdit = mapEditorInstance.toggleEditMode();
-  updateMapModeUI(isEdit);
+  MapUI.toggle();
 }
 window.toggleMapEditMode = toggleMapEditMode;
 
-function updateMapModeUI(isEdit) {
-  const text = document.getElementById('mapModeText');
-  const dot = document.getElementById('mapModeIndicatorDot');
-  const toolbar = document.getElementById('mapEditToolbar');
-
-  if (text) text.textContent = isEdit ? 'Chế độ sửa' : 'Chế độ xem';
-  if (dot) dot.style.background = isEdit ? 'var(--negative)' : 'var(--positive)';
-  if (toolbar) toolbar.style.display = isEdit ? 'flex' : 'none';
-}
-
 function filterMapByZone(zoneId) {
-  const chips = document.querySelectorAll('#mapZoneFilterChips .chip-btn');
-  chips.forEach(c => {
-    if (c.getAttribute('data-zone') === zoneId) {
-      c.classList.add('active');
-    } else {
-      c.classList.remove('active');
-    }
-  });
-
-  if (mapEditorInstance) {
-    mapEditorInstance.setZoneFilter(zoneId);
-  }
+  MapUI.setZone(zoneId);
 }
 window.filterMapByZone = filterMapByZone;
+
+window.setMapEditorInstance = function(inst) {
+  mapEditorInstance = inst;
+};
 
 // ==========================================
 // 3. ANIMAL PROFILES MODULE (MOBILE CARDS)
@@ -1090,7 +1051,7 @@ function checkInbreeding() {
   const resultDiv = document.getElementById('inbreedingResult');
 
   if (!maleId || !femaleId) {
-    alert('Vui lòng chọn cả đực và nái cần kiểm tra.');
+    appNotice('Vui lòng chọn cả đực và nái cần kiểm tra.');
     return;
   }
 
@@ -1383,7 +1344,7 @@ window.closeModal = closeModal;
 // Modal: Thêm cá thể
 function openAddAnimalModal() {
   if (!window.farmDB.canCreateRecords()) {
-    alert('Tài khoản Viewer chỉ có quyền xem dữ liệu, không thể tạo cá thể mới.');
+    appNotice('Tài khoản Viewer chỉ có quyền xem dữ liệu, không thể tạo cá thể mới.');
     return;
   }
 
@@ -1415,7 +1376,7 @@ function submitAddAnimal() {
   const notes = document.getElementById('newAnimalNotes').value.trim();
 
   if (!code) {
-    alert('Vui lòng nhập mã định danh cho cá thể');
+    appNotice('Vui lòng nhập mã định danh cho cá thể');
     return;
   }
 
@@ -1440,7 +1401,7 @@ function submitAddAnimal() {
     renderAnimals();
     renderDashboard();
   } catch (err) {
-    alert(err.message);
+    appNotice(err.message);
   }
 }
 window.submitAddAnimal = submitAddAnimal;
@@ -1448,7 +1409,7 @@ window.submitAddAnimal = submitAddAnimal;
 // Modal: Ghi nhận cân nặng
 function openWeightModal(animalId) {
   if (!window.farmDB.canCreateRecords()) {
-    alert('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
+    appNotice('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
     return;
   }
 
@@ -1471,7 +1432,7 @@ function submitAddWeight() {
   const note = document.getElementById('weightNoteInput').value.trim();
 
   if (!val || parseFloat(val) <= 0) {
-    alert('Vui lòng nhập trọng lượng hợp lệ (> 0)');
+    appNotice('Vui lòng nhập trọng lượng hợp lệ (> 0)');
     return;
   }
 
@@ -1489,7 +1450,7 @@ window.submitAddWeight = submitAddWeight;
 // Modal: Điều chuyển chuồng
 function openTransferModal(animalId) {
   if (!window.farmDB.canCreateRecords()) {
-    alert('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
+    appNotice('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
     return;
   }
 
@@ -1515,7 +1476,7 @@ window.openTransferModal = openTransferModal;
 
 function openTransferModalForPen(targetPenId) {
   if (!window.farmDB.canCreateRecords()) {
-    alert('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
+    appNotice('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
     return;
   }
 
@@ -1551,11 +1512,16 @@ function submitTransferAnimal() {
   const reason = document.getElementById('transferReasonInput').value.trim() || 'Điều chuyển chuồng';
 
   if (!animalId || !newPenId) {
-    alert('Vui lòng chọn đầy đủ cá thể và chuồng cần chuyển.');
+    appNotice('Vui lòng chọn đầy đủ cá thể và chuồng cần chuyển.');
     return;
   }
 
-  window.farmDB.transferAnimal(animalId, newPenId, reason, window.farmDB.getCurrentUser().name);
+  try {
+    window.farmDB.transferAnimal(animalId, newPenId, reason, window.farmDB.getCurrentUser().name, { enforceCapacity: true });
+  } catch (err) {
+    if (window.showToast) showToast(err.message, 'error', 5000); else appNotice(err.message);
+    return;
+  }
   closeModal('modalTransferAnimal');
 
   if (document.getElementById('animalDetailView').classList.contains('open')) {
@@ -1570,7 +1536,7 @@ window.submitTransferAnimal = submitTransferAnimal;
 // Modal: Ghi nhận sự cố (OFF_FEED & DEATH)
 function openIncidentModal(type) {
   if (!window.farmDB.canCreateRecords()) {
-    alert('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
+    appNotice('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
     return;
   }
 
@@ -1601,7 +1567,7 @@ function submitCreateIncident() {
   const actions = document.getElementById('incidentActionsInput').value.trim();
 
   if (!animalId || !symptoms) {
-    alert('Vui lòng chọn cá thể và nhập triệu chứng quan sát được.');
+    appNotice('Vui lòng chọn cá thể và nhập triệu chứng quan sát được.');
     return;
   }
 
@@ -1619,7 +1585,7 @@ function submitCreateIncident() {
     renderDashboard();
     renderAnimals();
   } catch (err) {
-    alert(err.message);
+    appNotice(err.message);
   }
 }
 window.submitCreateIncident = submitCreateIncident;
@@ -1637,7 +1603,7 @@ function submitAddFollowUp() {
   const incId = document.getElementById('followUpIncidentId').value;
   const note = document.getElementById('followUpNoteInput').value.trim();
   if (!note) {
-    alert('Vui lòng nhập nội dung theo dõi');
+    appNotice('Vui lòng nhập nội dung theo dõi');
     return;
   }
 
@@ -1661,7 +1627,7 @@ function submitCloseIncident() {
   const incId = document.getElementById('closeIncidentId').value;
   const outcome = document.getElementById('closeOutcomeInput').value.trim();
   if (!outcome) {
-    alert('Vui lòng nhập kết quả xử lý và tình trạng hồi phục.');
+    appNotice('Vui lòng nhập kết quả xử lý và tình trạng hồi phục.');
     return;
   }
 
@@ -1675,7 +1641,7 @@ window.submitCloseIncident = submitCloseIncident;
 // Modal: Lứa đẻ mới
 function openCreateLitterModal() {
   if (!window.farmDB.canCreateRecords()) {
-    alert('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
+    appNotice('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
     return;
   }
 
@@ -1713,7 +1679,7 @@ function submitCreateLitter() {
   const notes = document.getElementById('litterNotesInput').value.trim();
 
   if (!code || !motherId) {
-    alert('Vui lòng nhập mã lứa và chọn nái mẹ.');
+    appNotice('Vui lòng nhập mã lứa và chọn nái mẹ.');
     return;
   }
 
@@ -1737,7 +1703,7 @@ window.submitCreateLitter = submitCreateLitter;
 // Modal: Cấp mã cá thể con
 function openRegisterLitterMemberModal(litterId) {
   if (!window.farmDB.canCreateRecords()) {
-    alert('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
+    appNotice('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
     return;
   }
 
@@ -1762,7 +1728,7 @@ function submitRegisterLitterMember() {
   const penId = document.getElementById('registerMemberPenSelect').value;
 
   if (!code) {
-    alert('Vui lòng nhập mã định danh cho dúi con');
+    appNotice('Vui lòng nhập mã định danh cho dúi con');
     return;
   }
 
@@ -1781,7 +1747,7 @@ function submitRegisterLitterMember() {
     renderAnimals();
     renderDashboard();
   } catch (err) {
-    alert(err.message);
+    appNotice(err.message);
   }
 }
 window.submitRegisterLitterMember = submitRegisterLitterMember;

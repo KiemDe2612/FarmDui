@@ -3,6 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1b6c80">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Farm Management - Quản Lý Trang Trại Dúi (Mobile-First)</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -134,51 +140,89 @@
 
       <!-- TAB 2: SƠ ĐỒ CHUỒNG 2D (MOBILE TOUCH CANVAS) -->
       <section id="tab-map" class="tab-pane">
-        <div class="map-screen-wrapper">
-          <!-- Zone Filter Chips -->
-          <div class="zone-filter-chips" id="mapZoneFilterChips">
-            <button class="chip-btn active" data-zone="ALL" onclick="filterMapByZone('ALL')">Tất cả khu</button>
-            <button class="chip-btn" data-zone="z1" onclick="filterMapByZone('z1')">Khu A: Sinh sản</button>
-            <button class="chip-btn" data-zone="z2" onclick="filterMapByZone('z2')">Khu B: Hậu bị</button>
+        <div class="map-screen-wrapper" id="mapScreen">
+          <div class="map-head">
+            <div>
+              <h2 class="section-title">Sơ đồ trang trại</h2>
+              <div class="section-desc" id="mapSummary">Đang tải sơ đồ...</div>
+            </div>
           </div>
 
-          <!-- Status Legend -->
+          <!-- Chọn khu: chạm để đưa khu đó vào giữa màn hình -->
+          <div class="zone-filter-chips" id="mapZoneFilterChips"></div>
+
+          <!-- Chú giải trạng thái (luôn có chữ đi kèm màu) -->
           <div class="map-legend-row">
-            <div class="legend-item"><span class="legend-color" style="background:#1e7b4f;"></span> Hoạt động</div>
+            <div class="legend-item"><span class="legend-color" style="background:#1e7b4f;"></span> Đang nuôi</div>
             <div class="legend-item"><span class="legend-color" style="background:#2f70bb;"></span> Sinh sản</div>
             <div class="legend-item"><span class="legend-color" style="background:#c4242a;"></span> Cách ly</div>
-            <div class="legend-item"><span class="legend-color" style="background:#858990;"></span> Chuồng trống</div>
+            <div class="legend-item"><span class="legend-color" style="background:#858990;"></span> Trống</div>
+            <div class="legend-item"><span class="legend-color" style="background:#4b4f55;"></span> Ngừng dùng</div>
           </div>
 
-          <!-- Touch Canvas Viewport -->
-          <div class="map-viewport-container">
+          <!-- Thanh công cụ chế độ sửa -->
+          <div class="map-edit-topbar" id="mapEditTopbar">
+            <button class="icon-btn" id="mapUndoBtn" onclick="MapUI.undo()" title="Hoàn tác" aria-label="Hoàn tác">
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+            </button>
+            <button class="icon-btn" id="mapRedoBtn" onclick="MapUI.redo()" title="Làm lại" aria-label="Làm lại">
+              <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg>
+            </button>
+            <button class="icon-btn" onclick="MapUI.openMore()" title="Phiên bản, xuất, nhập" aria-label="Thêm tùy chọn">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+            </button>
+            <div class="map-edit-status" id="mapEditStatus">Chưa có thay đổi</div>
+            <button class="btn btn-primary btn-sm" id="mapSaveBtn" onclick="MapUI.save()">Lưu sơ đồ</button>
+            <button class="btn btn-outline btn-sm" onclick="MapUI.exitEdit()">Xong</button>
+          </div>
+
+          <div class="map-viewport-container" id="mapViewport">
             <canvas id="farmCanvas"></canvas>
 
-            <!-- Mode Badge / Toggle Button -->
             <button class="mode-badge-float" id="mapModeBtn" onclick="toggleMapEditMode()">
               <span id="mapModeIndicatorDot" style="width:7px; height:7px; border-radius:50%; background:#1e7b4f;"></span>
               <span id="mapModeText">Chế độ xem</span>
             </button>
 
-            <!-- Floating Zoom & Fit Controls -->
             <div class="canvas-float-controls">
-              <button class="float-btn" onclick="mapEditorInstance.fitToScreen()" title="Vừa màn hình">
-                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+              <button class="float-btn" onclick="mapEditorInstance.fitToScreen()" title="Vừa màn hình" aria-label="Vừa màn hình">
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
               </button>
-              <button class="float-btn" onclick="mapEditorInstance.zoomIn()" title="Phóng to">+</button>
-              <button class="float-btn" onclick="mapEditorInstance.zoomOut()" title="Thu nhỏ">−</button>
-              <button class="float-btn" onclick="mapEditorInstance.resetView()" title="Đặt lại vị trí">
-                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              <button class="float-btn" onclick="mapEditorInstance.zoomIn()" title="Phóng to" aria-label="Phóng to">+</button>
+              <button class="float-btn" onclick="mapEditorInstance.zoomOut()" title="Thu nhỏ" aria-label="Thu nhỏ">−</button>
+              <button class="float-btn" onclick="mapEditorInstance.resetView()" title="Đặt lại vị trí" aria-label="Đặt lại vị trí">
+                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" stroke-width="2" fill="none"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
               </button>
             </div>
           </div>
 
-          <!-- Edit Mode Actions (Visible only in edit mode for Admin/Manager) -->
-          <div id="mapEditToolbar" style="display:none; gap:6px; flex-wrap:wrap; margin-top:4px;">
-            <button class="btn btn-primary btn-sm" onclick="mapEditorInstance.addBlock('PEN')">+ Thêm chuồng</button>
-            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.addBlock('ZONE')">+ Thêm khu</button>
-            <button class="btn btn-outline btn-sm" onclick="mapEditorInstance.addBlock('PATH')">+ Lối đi</button>
-            <button class="btn btn-outline btn-sm" style="color:var(--negative);" onclick="mapEditorInstance.deleteSelectedBlock()">Xóa khối chọn</button>
+          <!-- Khối đang chọn: các thao tác nhanh (chỉ chế độ sửa) -->
+          <div class="map-selection-bar" id="mapSelectionBar">
+            <div class="map-selection-title" id="mapSelectionTitle">Chưa chọn khối nào</div>
+            <div class="map-selection-actions" id="mapSelectionActions"></div>
+          </div>
+
+          <!-- Khay xây dựng: kéo xuống sơ đồ để đặt, hoặc chạm để đặt vào giữa -->
+          <div class="map-edit-dock" id="mapEditDock">
+            <div class="dock-hint">Kéo một ô xuống sơ đồ để đặt, hoặc chạm để đặt vào giữa màn hình.</div>
+            <div class="dock-tiles">
+              <div class="dock-tile" data-kind="PEN" role="button" tabindex="0">
+                <svg viewBox="0 0 24 24" width="26" height="26" stroke="currentColor" stroke-width="1.8" fill="none"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>
+                <span>Chuồng mới</span>
+              </div>
+              <div class="dock-tile" data-kind="ZONE" role="button" tabindex="0">
+                <svg viewBox="0 0 24 24" width="26" height="26" stroke="currentColor" stroke-width="1.8" fill="none" stroke-dasharray="3 2"><rect x="3" y="4" width="18" height="16" rx="2"/></svg>
+                <span>Khu vực</span>
+              </div>
+              <div class="dock-tile" data-kind="PATH" role="button" tabindex="0">
+                <svg viewBox="0 0 24 24" width="26" height="26" stroke="currentColor" stroke-width="1.8" fill="none"><path d="M8 3v18M16 3v18"/><path d="M12 5v2M12 11v2M12 17v2" stroke-dasharray="1 0"/></svg>
+                <span>Lối đi</span>
+              </div>
+              <button class="dock-tile dock-tile-btn" id="mapUnplacedBtn" onclick="MapUI.openUnplaced()">
+                <svg viewBox="0 0 24 24" width="26" height="26" stroke="currentColor" stroke-width="1.8" fill="none"><path d="M12 5v14M5 12h14"/></svg>
+                <span id="mapUnplacedLabel">Chuồng chưa đặt</span>
+              </button>
+            </div>
           </div>
         </div>
       </section>
@@ -509,7 +553,7 @@
     <!-- 2 Buttons Tác vụ -->
     <div style="display:flex; gap:8px; margin-top:6px;">
       <button class="btn btn-outline" style="flex:1;" onclick="switchSubModule('sub-pens'); closeMapSheet();">Chi tiết chuồng</button>
-      <button class="btn btn-primary" style="flex:1;" id="sheetTransferBtn">Chuyển dúi vào</button>
+      <button class="btn btn-primary" style="flex:1;" id="sheetTransferBtn">Thêm hoặc chuyển dúi</button>
     </div>
   </div>
 
@@ -853,10 +897,151 @@
   </div>
 
   <!-- SCRIPTS -->
+  <!-- ===== SƠ ĐỒ: CÁC FORM ===== -->
+
+  <!-- Chuồng: tạo mới hoặc sửa -->
+  <div id="modalPenForm" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="panel-title" id="penFormTitle">Chuồng mới</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalPenForm')">Đóng</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="penFormZone">Khu vực</label>
+          <select id="penFormZone" class="form-control" onchange="MapUI.onPenZoneChange()"></select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="penFormCode">Mã chuồng (không trùng)</label>
+          <input type="text" id="penFormCode" class="form-control mono-code" autocapitalize="characters" autocomplete="off" oninput="MapUI.checkPenCode()">
+          <div class="form-hint" id="penFormCodeHint"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="penFormName">Tên gọi (không bắt buộc)</label>
+          <input type="text" id="penFormName" class="form-control" placeholder="Ví dụ: Chuồng sinh sản 3">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Sức chứa (số con)</label>
+          <div class="stepper">
+            <button type="button" class="stepper-btn" onclick="MapUI.stepCapacity(-1)" aria-label="Giảm">−</button>
+            <input type="number" id="penFormCapacity" class="stepper-value" min="1" max="50" inputmode="numeric">
+            <button type="button" class="stepper-btn" onclick="MapUI.stepCapacity(1)" aria-label="Tăng">+</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Trạng thái</label>
+          <div class="seg-group" id="penFormStatus"></div>
+        </div>
+        <div class="form-hint">Thông tin chuồng được lưu ngay. Vị trí trên sơ đồ chỉ được lưu khi bấm "Lưu sơ đồ".</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalPenForm')">Hủy</button>
+        <button class="btn btn-primary" id="penFormSubmit" onclick="MapUI.submitPenForm()">Lưu chuồng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Khu vực / lối đi: đặt tên -->
+  <div id="modalBlockForm" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="panel-title" id="blockFormTitle">Khu vực</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalBlockForm')">Đóng</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="blockFormName" id="blockFormNameLabel">Tên khu</label>
+          <input type="text" id="blockFormName" class="form-control" autocomplete="off">
+        </div>
+        <div class="form-group" id="blockFormColorGroup">
+          <label class="form-label">Màu nền khu</label>
+          <div class="swatch-row" id="blockFormColors"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('modalBlockForm')">Hủy</button>
+        <button class="btn btn-primary" onclick="MapUI.submitBlockForm()">Xong</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Thêm dúi vào chuồng -->
+  <div id="modalPenAnimals" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3 class="panel-title" id="paTitle">Chuồng A01</h3>
+          <div class="form-hint" id="paSub"></div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalPenAnimals')">Đóng</button>
+      </div>
+      <div class="seg-group seg-tabs" id="paTabs">
+        <button type="button" class="seg-btn" data-tab="in" onclick="MapUI.paTab('in')">Trong chuồng</button>
+        <button type="button" class="seg-btn" data-tab="add" onclick="MapUI.paTab('add')">Thêm có sẵn</button>
+        <button type="button" class="seg-btn" data-tab="new" onclick="MapUI.paTab('new')">Dúi mới</button>
+      </div>
+      <div class="modal-body" id="paBody"></div>
+      <div class="modal-footer" id="paFooter" style="display:none;">
+        <button class="btn btn-primary" onclick="MapUI.submitNewAnimal()">Tạo và đặt vào chuồng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chuồng chưa có trên sơ đồ -->
+  <div id="modalUnplaced" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="panel-title">Chuồng chưa đặt trên sơ đồ</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalUnplaced')">Đóng</button>
+      </div>
+      <div class="modal-body" id="unplacedBody"></div>
+    </div>
+  </div>
+
+  <!-- Phiên bản, xuất, nhập -->
+  <div id="modalMapMore" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="panel-title">Phiên bản và chia sẻ sơ đồ</h3>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('modalMapMore')">Đóng</button>
+      </div>
+      <div class="modal-body">
+        <div class="map-more-actions">
+          <button class="btn btn-outline" onclick="MapUI.exportJSON()">Xuất file sơ đồ (JSON)</button>
+          <button class="btn btn-outline" onclick="document.getElementById('mapImportFile').click()">Nhập file sơ đồ</button>
+          <button class="btn btn-outline" onclick="mapEditorInstance.exportPNG()">Lưu ảnh PNG</button>
+          <input type="file" id="mapImportFile" accept="application/json,.json" style="display:none;" onchange="MapUI.importJSON(this)">
+        </div>
+        <strong style="font-size:13px;">Phiên bản đã lưu (10 gần nhất)</strong>
+        <div id="mapRevisionList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hộp xác nhận dùng chung -->
+  <div id="modalConfirm" class="modal-overlay confirm-layer">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="panel-title" id="confirmTitle">Xác nhận</h3>
+      </div>
+      <div class="modal-body"><div id="confirmMessage" style="font-size:14px; line-height:1.5;"></div></div>
+      <div class="modal-footer" id="confirmButtons"></div>
+    </div>
+  </div>
+
+  <div id="toastHost" class="toast-host" aria-live="polite"></div>
+
   <script src="js/db.js"></script>
   <script src="js/search.js"></script>
   <script src="js/map.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/map-ui.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+  </script>
 </body>
 </html>

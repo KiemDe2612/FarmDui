@@ -1,0 +1,17 @@
+{
+  "name": "Dúi Farm Pro - Quản lý trang trại dúi",
+  "short_name": "Dúi Farm",
+  "description": "Quản lý trang trại dúi trên điện thoại: sơ đồ chuồng, cá thể, sinh sản, sự cố. Dùng được khi mất mạng.",
+  "lang": "vi",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f4f6f8",
+  "theme_color": "#1b6c80",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

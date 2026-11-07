@@ -9,6 +9,8 @@
  */
 
 const DB_KEY = 'FARM_MANAGEMENT_DATA_V1';
+const PEN_STATUSES = ['ACTIVE', 'BREEDING', 'QUARANTINE', 'EMPTY', 'DISABLED'];
+const MAX_MAP_REVISIONS = 10;
 
 const INITIAL_SEED = {
   farms: [
@@ -256,7 +258,7 @@ const INITIAL_SEED = {
     width: 1200,
     height: 800,
     blocks: [
-      { id: 'blk-1', block_type: 'ZONE', zone_name: 'KHU A: SINH SẢN', x: 40, y: 40, width: 440, height: 420, color: '#f4f7f8', border: '#cbd2d6' },
+      { id: 'blk-1', block_type: 'ZONE', zone_id: 'z1', zone_name: 'KHU A: SINH SẢN', x: 40, y: 40, width: 440, height: 420, color: '#f4f7f8', border: '#cbd2d6' },
       { id: 'blk-2', block_type: 'PEN', pen_id: 'pen-1', pen_code: 'A01', x: 60, y: 80, width: 120, height: 120, label: 'Chuồng A01 (Đẻ)' },
       { id: 'blk-3', block_type: 'PEN', pen_id: 'pen-2', pen_code: 'A02', x: 200, y: 80, width: 120, height: 120, label: 'Chuồng A02 (Nuôi con)' },
       { id: 'blk-4', block_type: 'PEN', pen_id: 'pen-3', pen_code: 'A03', x: 60, y: 220, width: 120, height: 120, label: 'Chuồng A03 (Đực)' },
@@ -264,7 +266,7 @@ const INITIAL_SEED = {
 
       { id: 'blk-6', block_type: 'PATH', x: 500, y: 40, width: 100, height: 500, label: 'Lối Đi Trung Tâm' },
 
-      { id: 'blk-7', block_type: 'ZONE', zone_name: 'KHU B: HẬU BỊ & CÁCH LY', x: 620, y: 40, width: 440, height: 420, color: '#f0fdf4', border: '#4ade80' },
+      { id: 'blk-7', block_type: 'ZONE', zone_id: 'z2', zone_name: 'KHU B: HẬU BỊ & CÁCH LY', x: 620, y: 40, width: 440, height: 420, color: '#f0fdf4', border: '#4ade80' },
       { id: 'blk-8', block_type: 'PEN', pen_id: 'pen-5', pen_code: 'B01', x: 640, y: 80, width: 120, height: 120, label: 'Chuồng B01 (Hậu bị)' },
       { id: 'blk-9', block_type: 'PEN', pen_id: 'pen-6', pen_code: 'B02', x: 780, y: 80, width: 120, height: 120, label: 'Chuồng B02 (Hậu bị)' },
       { id: 'blk-10', block_type: 'PEN', pen_id: 'pen-7', pen_code: 'B03', x: 640, y: 220, width: 120, height: 120, label: 'Chuồng B03 (Cách ly)' }
@@ -295,6 +297,42 @@ class FarmDB {
         this.persist();
       }
     }
+    this.migrate();
+  }
+
+  // Nâng cấp dữ liệu cũ đã lưu trong trình duyệt mà không làm mất gì
+  migrate() {
+    let changed = false;
+    if (!this.data.farm_map) this.data.farm_map = { blocks: [] };
+    if (!Array.isArray(this.data.farm_map.blocks)) this.data.farm_map.blocks = [];
+    if (!Array.isArray(this.data.farm_map_revisions)) {
+      this.data.farm_map_revisions = [];
+      changed = true;
+    }
+    // Khối khu vực của bản cũ chưa gắn zone_id
+    const legacyZoneBlocks = { 'blk-1': 'z1', 'blk-7': 'z2' };
+    this.data.farm_map.blocks.forEach(b => {
+      if (b.block_type === 'ZONE' && !b.zone_id && legacyZoneBlocks[b.id]) {
+        const z = (this.data.zones || []).find(zz => zz.id === legacyZoneBlocks[b.id]);
+        if (z) {
+          b.zone_id = z.id;
+          changed = true;
+        }
+      }
+    });
+    if (changed) this.persist();
+  }
+
+  assertCanEditMap() {
+    if (!this.canEditMap()) {
+      throw new Error('Quyền bị từ chối: chỉ Admin và Manager mới được chỉnh sửa sơ đồ và chuồng.');
+    }
+  }
+
+  assertCanWrite() {
+    if (!this.canCreateRecords()) {
+      throw new Error('Tài khoản Viewer chỉ có quyền xem dữ liệu.');
+    }
   }
 
   persist() {
@@ -319,16 +357,124 @@ class FarmDB {
     return this.getPens().find(p => p.id === penId);
   }
 
-  savePen(pen) {
-    const idx = this.data.pens.findIndex(p => p.id === pen.id);
-    if (idx >= 0) {
-      this.data.pens[idx] = { ...this.data.pens[idx], ...pen, updated_at: new Date().toISOString() };
-    } else {
-      if (!pen.id) pen.id = 'pen-' + Date.now();
-      this.data.pens.push(pen);
+  isPenCodeTaken(code, exceptPenId = null) {
+    const c = String(code || '').trim().toUpperCase();
+    return this.getPens().some(p => p.pen_code.toUpperCase() === c && p.id !== exceptPenId);
+  }
+
+  // Gợi ý mã chuồng kế tiếp theo khu (ví dụ KHU_A -> A05)
+  generatePenCode(zoneId) {
+    const zone = this.getZones().find(z => z.id === zoneId);
+    let letter = 'M';
+    if (zone && zone.zone_code) {
+      const tail = zone.zone_code.split('_').pop();
+      if (tail) letter = tail.charAt(0).toUpperCase();
     }
+    let max = 0;
+    this.getPens().forEach(p => {
+      const m = p.pen_code.toUpperCase().match(new RegExp('^' + letter + '(\\d+)$'));
+      if (m) max = Math.max(max, parseInt(m[1], 10));
+    });
+    let n = max + 1;
+    let code = letter + String(n).padStart(2, '0');
+    while (this.isPenCodeTaken(code)) {
+      n++;
+      code = letter + String(n).padStart(2, '0');
+    }
+    return code;
+  }
+
+  getFreeSlots(penId) {
+    const pen = this.getPenById(penId);
+    if (!pen) return 0;
+    return Math.max(0, pen.capacity - this.getAnimalsInPen(penId).length);
+  }
+
+  // Chuồng đã tạo nhưng chưa có ô nào trên sơ đồ đã lưu
+  getUnplacedPens() {
+    const placed = new Set((this.getFarmMap().blocks || []).filter(b => b.block_type === 'PEN').map(b => b.pen_id));
+    return this.getPens().filter(p => !placed.has(p.id));
+  }
+
+  savePen(pen) {
+    this.assertCanEditMap();
+    const code = String(pen.pen_code || '').trim().toUpperCase();
+    if (!code) throw new Error('Vui lòng nhập mã chuồng.');
+    if (this.isPenCodeTaken(code, pen.id)) {
+      throw new Error(`Mã chuồng "${code}" đã tồn tại. Mã chuồng phải là duy nhất.`);
+    }
+    const capacity = parseInt(pen.capacity, 10);
+    if (!(capacity >= 1)) throw new Error('Sức chứa phải từ 1 con trở lên.');
+    const status = pen.status || 'ACTIVE';
+    if (!PEN_STATUSES.includes(status)) throw new Error('Trạng thái chuồng không hợp lệ.');
+
+    const existingIdx = pen.id ? this.data.pens.findIndex(p => p.id === pen.id) : -1;
+    if (existingIdx >= 0) {
+      const occupants = this.getAnimalsInPen(pen.id).length;
+      if (capacity < occupants) {
+        throw new Error(`Chuồng đang có ${occupants} con, sức chứa không được nhỏ hơn số đó.`);
+      }
+      if (status === 'DISABLED' && occupants > 0) {
+        throw new Error('Chuồng còn dúi, hãy chuyển hết dúi ra trước khi ngừng sử dụng.');
+      }
+      this.data.pens[existingIdx] = {
+        ...this.data.pens[existingIdx],
+        ...pen,
+        pen_code: code,
+        capacity,
+        status,
+        updated_at: new Date().toISOString()
+      };
+      this.logAudit(this.getCurrentUser().name, 'UPDATE_PEN', `Cập nhật chuồng ${code}`);
+      this.persist();
+      return this.data.pens[existingIdx];
+    }
+
+    const newPen = {
+      farm_id: (this.data.farms && this.data.farms[0] && this.data.farms[0].id) || 'f1',
+      zone_id: null,
+      name: '',
+      notes: '',
+      ...pen,
+      id: pen.id || 'pen-' + Date.now(),
+      pen_code: code,
+      capacity,
+      status,
+      created_at: new Date().toISOString()
+    };
+    this.data.pens.push(newPen);
+    this.logAudit(this.getCurrentUser().name, 'CREATE_PEN', `Tạo chuồng ${code}`);
     this.persist();
-    return pen;
+    return newPen;
+  }
+
+  saveZone(zone) {
+    this.assertCanEditMap();
+    const name = String(zone.name || '').trim();
+    const code = String(zone.zone_code || '').trim().toUpperCase();
+    if (!name) throw new Error('Vui lòng nhập tên khu vực.');
+    if (!code) throw new Error('Thiếu mã khu vực.');
+    const dup = this.getZones().find(z => z.id !== zone.id && (z.zone_code.toUpperCase() === code));
+    if (dup) throw new Error(`Mã khu "${code}" đã tồn tại.`);
+    if (!this.data.zones) this.data.zones = [];
+    const idx = zone.id ? this.data.zones.findIndex(z => z.id === zone.id) : -1;
+    if (idx >= 0) {
+      this.data.zones[idx] = { ...this.data.zones[idx], ...zone, name, zone_code: code };
+      this.persist();
+      return this.data.zones[idx];
+    }
+    const created = {
+      farm_id: (this.data.farms && this.data.farms[0] && this.data.farms[0].id) || 'f1',
+      status: 'ACTIVE',
+      ...zone,
+      id: zone.id || 'z' + Date.now(),
+      name,
+      zone_code: code
+    };
+    this.data.zones.push(created);
+    this.logAudit(this.getCurrentUser().name, 'CREATE_ZONE', `Tạo khu ${name}`);
+    this.persist();
+    return created;
   }
 
   // Lấy danh sách cá thể đang ở trong một chuồng (active pen_assignment)
@@ -359,6 +505,7 @@ class FarmDB {
   }
 
   saveAnimal(animal) {
+    this.assertCanWrite();
     // Kiểm tra trùng mã ID hiển thị
     const existingCode = this.getAnimalByCode(animal.animal_code);
     if (existingCode && existingCode.id !== animal.id) {
@@ -386,7 +533,18 @@ class FarmDB {
 
   // Chuyển chuồng đảm bảo Transactional Invariant:
   // Đóng assignment cũ, tạo assignment mới, đảm bảo 1 cá thể chỉ có tối đa 1 assignment active
-  transferAnimal(animalId, newPenId, reason = 'Chuyển chuồng định kỳ', recordedBy = 'Quản Lý') {
+  transferAnimal(animalId, newPenId, reason = 'Chuyển chuồng định kỳ', recordedBy = 'Quản Lý', opts = {}) {
+    this.assertCanWrite();
+    if (newPenId && opts.enforceCapacity) {
+      const pen = this.getPenById(newPenId);
+      if (!pen) throw new Error('Không tìm thấy chuồng đích.');
+      if (pen.status === 'DISABLED') throw new Error(`Chuồng ${pen.pen_code} đã ngừng sử dụng.`);
+      const current = this.getCurrentPenForAnimal(animalId);
+      if (current && current.id === newPenId) return; // đã ở chuồng này
+      if (this.getFreeSlots(newPenId) < 1) {
+        throw new Error(`Chuồng ${pen.pen_code} đã đủ ${pen.capacity}/${pen.capacity} con.`);
+      }
+    }
     const now = new Date().toISOString();
     // Đóng toàn bộ active assignment của con này
     this.data.pen_assignments = (this.data.pen_assignments || []).map(pa => {
@@ -660,15 +818,89 @@ class FarmDB {
     return this.data.farm_map || { blocks: [] };
   }
 
-  saveFarmMap(mapData) {
+  // Kiểm tra hình học và liên kết dữ liệu của sơ đồ trước khi lưu
+  validateFarmMap(mapData) {
+    const blocks = (mapData && mapData.blocks) || [];
+    const ids = new Set();
+    const penIds = new Set();
+    for (const b of blocks) {
+      if (!b.id || ids.has(b.id)) throw new Error('Sơ đồ có khối bị trùng mã.');
+      ids.add(b.id);
+      if (![b.x, b.y, b.width, b.height].every(Number.isFinite) || b.width <= 0 || b.height <= 0) {
+        throw new Error('Có khối với vị trí hoặc kích thước không hợp lệ.');
+      }
+      if (b.block_type === 'PEN') {
+        if (!b.pen_id || !this.getPenById(b.pen_id)) throw new Error('Có ô chuồng chưa gắn với chuồng thật.');
+        if (penIds.has(b.pen_id)) throw new Error('Một chuồng không được xuất hiện hai lần trên sơ đồ.');
+        penIds.add(b.pen_id);
+      }
+    }
+    const pens = blocks.filter(b => b.block_type === 'PEN');
+    for (let i = 0; i < pens.length; i++) {
+      for (let j = i + 1; j < pens.length; j++) {
+        const a = pens[i], c = pens[j];
+        if (a.x < c.x + c.width && a.x + a.width > c.x && a.y < c.y + c.height && a.y + a.height > c.y) {
+          const pa = this.getPenById(a.pen_id), pc = this.getPenById(c.pen_id);
+          throw new Error(`Chuồng ${pa.pen_code} và ${pc.pen_code} đang chồng lên nhau.`);
+        }
+      }
+    }
+  }
+
+  // Lưu sơ đồ: giữ lại bản trước đó làm phiên bản khôi phục.
+  // Chỉ thay đổi hình học; không đụng đến pen_assignments của cá thể.
+  saveFarmMap(mapData, note = '') {
+    this.assertCanEditMap();
+    this.validateFarmMap(mapData);
+    const user = this.getCurrentUser();
+    const prev = this.data.farm_map || { blocks: [] };
+
+    if (!Array.isArray(this.data.farm_map_revisions)) this.data.farm_map_revisions = [];
+    this.data.farm_map_revisions.unshift({
+      id: 'rev-' + Date.now(),
+      saved_at: new Date().toISOString(),
+      saved_by: user.name,
+      revision_number: prev.revision_number || 1,
+      note,
+      map: JSON.parse(JSON.stringify({ blocks: prev.blocks || [] }))
+    });
+    this.data.farm_map_revisions = this.data.farm_map_revisions.slice(0, MAX_MAP_REVISIONS);
+
+    // Chuồng vừa đặt/di chuyển vào khối khu nào thì thuộc khu đó (chỉ cập nhật zone_id của chuồng)
+    const zoneBlocks = (mapData.blocks || []).filter(b => b.block_type === 'ZONE' && b.zone_id);
+    const prevPos = {};
+    (prev.blocks || []).filter(b => b.block_type === 'PEN').forEach(b => { prevPos[b.pen_id] = b; });
+    let zoneChanges = 0;
+    (mapData.blocks || []).filter(b => b.block_type === 'PEN').forEach(b => {
+      const before = prevPos[b.pen_id];
+      if (before && before.x === b.x && before.y === b.y) return; // chỉ xét chuồng mới đặt hoặc vừa di chuyển
+      const cx = b.x + b.width / 2, cy = b.y + b.height / 2;
+      const inside = zoneBlocks
+        .filter(z => cx >= z.x && cx <= z.x + z.width && cy >= z.y && cy <= z.y + z.height)
+        .sort((a, c) => a.width * a.height - c.width * c.height)[0];
+      const pen = this.getPenById(b.pen_id);
+      if (inside && pen && pen.zone_id !== inside.zone_id) {
+        pen.zone_id = inside.zone_id;
+        pen.updated_at = new Date().toISOString();
+        zoneChanges++;
+      }
+    });
+
     this.data.farm_map = {
-      ...this.data.farm_map,
+      ...prev,
       ...mapData,
-      revision_number: (this.data.farm_map.revision_number || 1) + 1,
-      updated_at: new Date().toISOString()
+      blocks: JSON.parse(JSON.stringify(mapData.blocks || [])),
+      revision_number: (prev.revision_number || 1) + 1,
+      updated_at: new Date().toISOString(),
+      updated_by: user.name
     };
+    this.logAudit(user.name, 'EDIT_FARM_MAP', `Lưu sơ đồ phiên bản ${this.data.farm_map.revision_number}${note ? ': ' + note : ''}`);
     this.persist();
-    return this.data.farm_map;
+    return { map: this.data.farm_map, zoneChanges };
+  }
+
+  getFarmMapRevisions() {
+    return this.data.farm_map_revisions || [];
   }
 
   // --- AUDIT LOGS ---
@@ -699,7 +931,7 @@ class FarmDB {
     const pens = this.getPens();
     const activePens = pens.filter(p => p.status === 'ACTIVE').length;
     const breedingPens = pens.filter(p => p.status === 'BREEDING').length;
-    const emptyPens = pens.filter(p => p.status === 'EMPTY' || this.getAnimalsInPen(p.id).length === 0).length;
+    const emptyPens = pens.filter(p => p.status !== 'DISABLED' && (p.status === 'EMPTY' || this.getAnimalsInPen(p.id).length === 0)).length;
     const quarantinePens = pens.filter(p => p.status === 'QUARANTINE').length;
 
     const openIncidents = (this.data.incidents || []).filter(i => i.status === 'OPEN' && i.incident_type === 'OFF_FEED');
