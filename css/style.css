@@ -1202,3 +1202,26 @@ textarea.form-control {
 .toast-host { bottom: auto; top: calc(var(--topbar-height) + 8px + env(safe-area-inset-top, 0px)); }
 .toast { animation: toastIn 180ms ease-out; }
 @keyframes toastIn { from { transform: translateY(-12px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+/* ---------- Khay xây dựng luôn nổi sát đáy màn hình (không cần cuộn) ---------- */
+#mapScreen.editing { padding-bottom: 200px; }
+#mapScreen.editing .map-edit-dock,
+#mapScreen.editing .map-selection-bar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 16px), 640px);
+  z-index: 95;
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.12);
+}
+#mapScreen.editing .map-edit-dock {
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 6px);
+  padding: 6px 8px;
+}
+#mapScreen.editing .map-edit-dock .dock-hint { display: none; }
+#mapScreen.editing .map-edit-dock .dock-tile { min-height: 54px; padding: 4px; gap: 2px; }
+#mapScreen.editing .map-selection-bar {
+  bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + 6px + 66px + 6px);
+  padding: 6px 8px;
+  gap: 4px;
+}

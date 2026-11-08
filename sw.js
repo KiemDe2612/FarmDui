@@ -1,6 +1,6 @@
 /* Service worker: giúp app mở được khi mất mạng.
    Đổi CACHE_VERSION mỗi khi sửa file giao diện để máy người dùng nhận bản mới. */
-const CACHE_VERSION = 'duifarm-v1';
+const CACHE_VERSION = 'duifarm-v2';
 const APP_SHELL = [
   './',
   './index.html',
