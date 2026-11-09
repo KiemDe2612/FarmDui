@@ -1,12 +1,13 @@
 /* Service worker: giúp app mở được khi mất mạng.
    Đổi CACHE_VERSION mỗi khi sửa file giao diện để máy người dùng nhận bản mới. */
-const CACHE_VERSION = 'duifarm-v3';
+const CACHE_VERSION = 'duifarm-v4';
 const APP_SHELL = [
   './',
   './index.html',
   './css/style.css',
   './js/util.js',
   './js/auth.js',
+  './js/sync.js',
   './js/auth-ui.js',
   './js/db.js',
   './js/search.js',
@@ -38,6 +39,8 @@ self.addEventListener('fetch', (event) => {
   const req = event.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
+  // API và dữ liệu trang trại không bao giờ được lưu trong bộ nhớ đệm của service worker
+  if (url.origin === self.location.origin && url.pathname.startsWith('/api/')) return;
   const isFont = url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com';
   if (url.origin !== self.location.origin && !isFont) return;
 

@@ -853,7 +853,7 @@ const MapUI = (() => {
   }
 
   // ---------- Khởi động ----------
-  document.addEventListener('DOMContentLoaded', () => {
+  window.whenAppReady(() => {
     bindDock();
     window.addEventListener('beforeunload', (e) => {
       if (ed() && ed().dirty) { e.preventDefault(); e.returnValue = ''; }

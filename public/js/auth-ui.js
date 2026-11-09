@@ -1,4 +1,4 @@
-/* Giao diện đăng nhập và quản lý tài khoản (xem js/auth.js). Không có đăng ký công khai. */
+/* Giao diện đăng nhập, đặt mật khẩu lần đầu và quản lý tài khoản (xem js/auth.js). Không có đăng ký công khai. */
 (function () {
   const $ = (id) => document.getElementById(id);
   const auth = () => window.farmAuth;
@@ -8,6 +8,18 @@
     STAFF: 'Staff: xem sơ đồ, ghi cân nặng, báo sự cố, chuyển chuồng. Không sửa sơ đồ.',
     VIEWER: 'Viewer: chỉ xem, không tạo hay sửa dữ liệu.'
   };
+
+  // app.js và map-ui.js đăng ký hàm khởi động qua đây; chỉ chạy sau khi đăng nhập và tải xong dữ liệu
+  const readyQueue = [];
+  let appIsReady = false;
+  window.whenAppReady = function (fn) {
+    if (appIsReady) fn();
+    else readyQueue.push(fn);
+  };
+  function appReady() {
+    appIsReady = true;
+    readyQueue.splice(0).forEach((fn) => fn());
+  }
 
   function say(el, msg) {
     if (!el) return;
@@ -21,19 +33,44 @@
   }
 
   // ---------- Màn hình đăng nhập ----------
-  function showLogin() {
-    const setup = !auth().hasUsers();
+  function showLoginScreen(mode) {
+    $('bootLoading').hidden = true;
     $('loginScreen').hidden = false;
     document.body.classList.add('auth-locked');
-    $('loginTitle').textContent = setup ? 'Thiết lập lần đầu' : 'Đăng nhập';
-    $('loginSub').textContent = setup
-      ? 'Tạo tài khoản Admin duy nhất để bắt đầu. Sau đó chỉ Admin mới thêm được nhân sự khác.'
-      : 'Chỉ dành cho nhân sự trang trại. Cần tài khoản do Admin cấp.';
-    $('loginDisplayGroup').hidden = !setup;
-    $('loginConfirmGroup').hidden = !setup;
-    $('loginPass').autocomplete = setup ? 'new-password' : 'current-password';
-    $('loginSubmit').textContent = setup ? 'Tạo Admin và vào app' : 'Đăng nhập';
-    setTimeout(() => $('loginUser').focus(), 50);
+    $('loginForm').hidden = mode !== 'login';
+    $('forcePwForm').hidden = mode !== 'force';
+    setTimeout(() => $(mode === 'login' ? 'loginUser' : 'forceOld').focus(), 50);
+  }
+
+  function showLogin() {
+    showLoginScreen('login');
+  }
+
+  function showForcedPassword() {
+    ['forceOld', 'forceNew', 'forceConfirm'].forEach((id) => { $(id).value = ''; });
+    say($('forceError'), '');
+    const me = auth().getSessionUser();
+    $('forceWho').textContent = me ? me.display_name + ' (@' + me.username + ')' : '';
+    showLoginScreen('force');
+  }
+
+  // Vào app: tải dữ liệu từ máy chủ rồi mở giao diện
+  async function enterApp() {
+    const me = auth().getSessionUser();
+    try {
+      await window.farmSync.start(window.farmDB, me);
+    } catch (ex) {
+      if (ex.status === 401) {
+        auth().logout();
+        return showLogin();
+      }
+      note('Không tải được dữ liệu từ máy chủ: ' + ex.message, 'error');
+    }
+    $('bootLoading').hidden = true;
+    $('loginScreen').hidden = true;
+    document.body.classList.remove('auth-locked');
+    window.refreshAccountUI();
+    appReady();
   }
 
   async function onLoginSubmit(e) {
@@ -41,25 +78,45 @@
     const err = $('loginError');
     say(err, '');
     const btn = $('loginSubmit');
-    const username = $('loginUser').value;
-    const password = $('loginPass').value;
     btn.disabled = true;
+    btn.textContent = 'Đang đăng nhập...';
     try {
-      if (!auth().hasUsers()) {
-        if (password !== $('loginConfirm').value) throw new Error('Hai lần nhập mật khẩu chưa khớp.');
-        await auth().createFirstAdmin({ username, display_name: $('loginDisplay').value, password });
-      } else {
-        await auth().login(username, password);
-      }
-      location.reload();
+      const user = await auth().login($('loginUser').value, $('loginPass').value);
+      $('loginPass').value = '';
+      if (user.must_change) showForcedPassword();
+      else await enterApp();
     } catch (ex) {
       say(err, ex.message);
-      btn.disabled = false;
     }
+    btn.disabled = false;
+    btn.textContent = 'Đăng nhập';
   }
 
-  window.doLogout = function () {
-    auth().logout();
+  async function onForcePasswordSubmit(e) {
+    e.preventDefault();
+    const err = $('forceError');
+    say(err, '');
+    const btn = $('forceSubmit');
+    btn.disabled = true;
+    try {
+      if ($('forceNew').value !== $('forceConfirm').value) throw new Error('Hai lần nhập mật khẩu mới chưa khớp.');
+      await auth().changeOwnPassword($('forceOld').value, $('forceNew').value);
+      ['forceOld', 'forceNew', 'forceConfirm'].forEach((id) => { $(id).value = ''; });
+      await enterApp();
+      note('Đã đặt mật khẩu mới. Lần sau hãy đăng nhập bằng mật khẩu này.');
+    } catch (ex) {
+      say(err, ex.message);
+    }
+    btn.disabled = false;
+  }
+
+  window.doLogout = async function () {
+    if (window.farmSync && window.farmSync.isDirty()) {
+      const saved = await window.farmSync.flush();
+      if (!saved && !confirm('Còn thay đổi chưa lưu lên máy chủ (có thể do mất mạng). Đăng xuất bây giờ sẽ làm mất chúng. Vẫn đăng xuất?')) return;
+    }
+    await auth().logout();
+    if (window.farmSync) window.farmSync.clearLocal();
     location.reload();
   };
 
@@ -84,6 +141,8 @@
   function openPasswordModal(target) {
     pwTarget = target;
     $('passwordTitle').textContent = target ? 'Đặt lại mật khẩu: ' + target : 'Đổi mật khẩu';
+    $('passwordHint').textContent = target ? 'Đây là mật khẩu tạm. Người này sẽ phải tự đặt mật khẩu mới khi đăng nhập.' : '';
+    $('passwordHint').hidden = !target;
     $('passwordOldGroup').hidden = !!target;
     ['pwOld', 'pwNew', 'pwConfirm'].forEach((id) => { $(id).value = ''; });
     say($('passwordError'), '');
@@ -100,7 +159,8 @@
       if (pwTarget) await auth().resetPassword(pwTarget, $('pwNew').value);
       else await auth().changeOwnPassword($('pwOld').value, $('pwNew').value);
       $('modalPassword').classList.remove('active');
-      note('Đã lưu mật khẩu mới.');
+      note(pwTarget ? 'Đã đặt mật khẩu tạm. Hãy gửi cho người đó, họ sẽ phải đổi khi đăng nhập.' : 'Đã lưu mật khẩu mới.');
+      if (pwTarget) window.renderAccounts();
     } catch (ex) {
       say($('passwordError'), ex.message);
     }
@@ -109,53 +169,63 @@
   // ---------- Quản lý tài khoản (Admin) ----------
   const ROLE_LABEL = { ADMIN: 'Admin', MANAGER: 'Manager', STAFF: 'Staff', VIEWER: 'Viewer' };
 
-  window.renderAccounts = function () {
+  window.renderAccounts = async function () {
     const host = $('accountsList');
     if (!host) return;
     const me = auth().getSessionUser();
-    host.innerHTML = auth().listUsers().map((u) => {
+    let users;
+    try {
+      users = await auth().listUsers();
+    } catch (ex) {
+      host.innerHTML = `<div class="item-card" style="color:var(--negative);">${esc(ex.message)}</div>`;
+      return;
+    }
+    host.innerHTML = users.map((u) => {
       const self = me && me.username === u.username;
       const opts = auth().ROLES.map((r) => `<option value="${r}" ${r === u.role ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`).join('');
+      const state = !u.active ? '<span class="pill pill-neutral">Đã khóa</span>'
+        : u.must_change ? '<span class="pill pill-neutral">Chờ đổi MK</span>'
+        : '<span class="pill pill-positive">Hoạt động</span>';
       return `<div class="item-card">
         <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
           <div style="min-width:0;">
             <div class="item-card-title">${esc(u.display_name)}${self ? ' (bạn)' : ''}</div>
             <div class="mono-code" style="font-size:12px; color:var(--muted);">@${esc(u.username)}</div>
           </div>
-          <span class="pill ${u.active ? 'pill-positive' : 'pill-neutral'}">${u.active ? 'Hoạt động' : 'Đã khóa'}</span>
+          ${state}
         </div>
         <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:10px;">
           <select class="form-control" style="flex:1 1 120px;" data-act="role" data-user="${esc(u.username)}" aria-label="Vai trò">${opts}</select>
-          <button class="btn btn-outline btn-sm" data-act="reset" data-user="${esc(u.username)}">Đặt lại MK</button>
-          ${self ? '' : `<button class="btn btn-outline btn-sm" data-act="toggle" data-user="${esc(u.username)}" data-active="${u.active ? '1' : '0'}">${u.active ? 'Khóa' : 'Mở khóa'}</button>
+          ${self ? '' : `<button class="btn btn-outline btn-sm" data-act="reset" data-user="${esc(u.username)}">Đặt lại MK</button>
+          <button class="btn btn-outline btn-sm" data-act="toggle" data-user="${esc(u.username)}" data-active="${u.active ? '1' : '0'}">${u.active ? 'Khóa' : 'Mở khóa'}</button>
           <button class="btn btn-outline btn-sm" style="color:var(--negative);" data-act="delete" data-user="${esc(u.username)}">Xóa</button>`}
         </div>
       </div>`;
     }).join('');
   };
 
-  function onAccountsClick(e) {
+  async function onAccountsClick(e) {
     const b = e.target.closest('[data-act]');
     if (!b || b.tagName === 'SELECT') return;
     const user = b.dataset.user;
     try {
       if (b.dataset.act === 'reset') return openPasswordModal(user);
-      if (b.dataset.act === 'toggle') auth().setActive(user, b.dataset.active !== '1');
+      if (b.dataset.act === 'toggle') await auth().setActive(user, b.dataset.active !== '1');
       if (b.dataset.act === 'delete') {
         if (!confirm('Xóa vĩnh viễn tài khoản @' + user + '? Dữ liệu trang trại không bị ảnh hưởng.')) return;
-        auth().removeUser(user);
+        await auth().removeUser(user);
       }
-      window.renderAccounts();
     } catch (ex) {
       note(ex.message, 'error');
     }
+    window.renderAccounts();
   }
 
-  function onAccountsChange(e) {
+  async function onAccountsChange(e) {
     const s = e.target.closest('select[data-act="role"]');
     if (!s) return;
     try {
-      auth().setRole(s.dataset.user, s.value);
+      await auth().setRole(s.dataset.user, s.value);
       note('Đã đổi vai trò.');
     } catch (ex) {
       note(ex.message, 'error');
@@ -165,6 +235,7 @@
 
   async function onAddUser(e) {
     e.preventDefault();
+    const form = e.target;
     try {
       await auth().addUser({
         username: $('newUserName').value,
@@ -172,30 +243,32 @@
         role: $('newUserRole').value,
         password: $('newUserPass').value
       });
-      e.target.reset();
+      form.reset();
       window.renderAccounts();
-      note('Đã tạo tài khoản. Hãy đưa mật khẩu tạm cho nhân sự và nhắc họ đổi mật khẩu.');
+      note('Đã tạo tài khoản. Hãy gửi mật khẩu tạm cho nhân sự, họ sẽ phải đặt mật khẩu mới khi đăng nhập lần đầu.');
     } catch (ex) {
       note(ex.message, 'error');
     }
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', async () => {
     $('loginForm').addEventListener('submit', onLoginSubmit);
-    $('loginShowPass').addEventListener('change', (e) => {
+    $('forcePwForm').addEventListener('submit', onForcePasswordSubmit);
+    $('forceLogout').addEventListener('click', () => window.doLogout());
+    $('loginShowPass').addEventListener('change', (e) => { $('loginPass').type = e.target.checked ? 'text' : 'password'; });
+    $('forceShowPass').addEventListener('change', (e) => {
       const t = e.target.checked ? 'text' : 'password';
-      ['loginPass', 'loginConfirm'].forEach((id) => { $(id).type = t; });
+      ['forceOld', 'forceNew', 'forceConfirm'].forEach((id) => { $(id).type = t; });
     });
     $('passwordForm').addEventListener('submit', onPasswordSubmit);
     $('addUserForm').addEventListener('submit', onAddUser);
     $('accountsList').addEventListener('click', onAccountsClick);
     $('accountsList').addEventListener('change', onAccountsChange);
 
-    if (auth().getSessionUser()) {
-      document.body.classList.remove('auth-locked');
-      window.refreshAccountUI();
-    } else {
-      showLogin();
-    }
+    const status = await auth().refresh();
+    const me = auth().getSessionUser();
+    if (!me) return showLogin();
+    if (me.must_change && status === 'ok') return showForcedPassword();
+    await enterApp();
   });
 })();

@@ -1,20 +1,19 @@
 @echo off
 chcp 65001 > nul
 echo ========================================================
-echo    DÚI FARM PRO - PHẦN MỀM QUẢN LÝ TRANG TRẠI DÚI v1.1
+echo    DUI FARM PRO - CHAY THU TREN MAY (Cloudflare Worker + D1 local)
 echo ========================================================
-echo Đang khởi động máy chủ Web cục bộ...
-echo Trình duyệt sẽ tự động mở tại: http://localhost:8080
-echo (Nhấn Ctrl+C trong cửa sổ này nếu muốn dừng máy chủ)
-echo ========================================================
-
-where python >nul 2>nul
+where node >nul 2>nul
 if errorlevel 1 (
-  echo Chua cai Python. Tai tai https://www.python.org/downloads/ roi chay lai.
+  echo Chua cai Node.js. Tai tai https://nodejs.org roi chay lai.
   pause
   exit /b 1
 )
-start http://localhost:8080
-python -m http.server 8080
+if not exist node_modules call npm install
+if not exist db\seed-users.local.sql node scripts\make-seed.mjs
+call npx wrangler d1 execute farmdui65 --local --file=db/schema.sql > nul
+call npx wrangler d1 execute farmdui65 --local --file=db/seed-users.local.sql > nul
+echo Mo trinh duyet tai: http://localhost:8787  (Ctrl+C de dung)
+start http://localhost:8787
+call npx wrangler dev --port 8787
 pause
-

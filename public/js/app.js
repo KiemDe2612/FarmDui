@@ -10,7 +10,14 @@ let currentAnimalFilter = 'ALL';
 let currentDetailAnimalId = null;
 let currentDetailTabKey = 'info';
 
-document.addEventListener('DOMContentLoaded', () => {
+// Vẽ lại màn hình đang mở sau khi dữ liệu mới được tải từ máy chủ (js/sync.js)
+window.refreshAfterSync = function () {
+  renderCurrentTab(currentActiveTab);
+  if (currentActiveTab === 'tab-map' && window.MapUI) MapUI.onTabShown();
+};
+
+// Chỉ chạy sau khi đăng nhập và tải xong dữ liệu (xem js/auth-ui.js)
+window.whenAppReady(() => {
   // 1. Initial State & RBAC Setup
   const user = window.farmDB.getCurrentUser();
   updateRoleUI();
@@ -32,21 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Setup Online/Offline Status Indicator
-  const onlineDot = document.getElementById('onlineStatusDot');
-  const syncStatusText = document.getElementById('syncStatusText');
-  const updateOnline = () => {
-    const isOnline = navigator.onLine;
-    if (onlineDot) {
-      onlineDot.style.background = isOnline ? 'var(--positive)' : 'var(--negative)';
-    }
-    if (syncStatusText) {
-      syncStatusText.textContent = isOnline ? 'Lưu trên máy' : 'Ngoại tuyến';
-      syncStatusText.title = isOnline ? 'Dữ liệu đang lưu trên điện thoại này. Chưa có máy chủ để đồng bộ với thiết bị khác.' : 'Không có mạng. App vẫn dùng bình thường, dữ liệu lưu trên điện thoại.';
-    }
-  };
-  window.addEventListener('online', updateOnline);
-  window.addEventListener('offline', updateOnline);
-  updateOnline();
+  // Trạng thái lưu lên máy chủ do js/sync.js hiển thị
+  if (window.farmSync) window.farmSync.renderStatus();
 
   // 2. Bottom Navigation Listeners
   const navButtons = document.querySelectorAll('.nav-tab-btn');

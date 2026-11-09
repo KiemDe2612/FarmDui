@@ -104,11 +104,18 @@ Toàn bộ mã nguồn đã được quản lý phiên bản qua Git:
 
 ---
 
-### 8. ĐĂNG NHẬP, PHÂN QUYỀN VÀ KIỂM THỬ (cập nhật mới nhất)
+### 8. KIẾN TRÚC MÁY CHỦ, ĐĂNG NHẬP VÀ ĐỒNG BỘ DỮ LIỆU (cập nhật mới nhất)
 
-- **Đăng nhập nội bộ, không có đăng ký.** Lần đầu mở app (máy chưa có tài khoản) sẽ hiện màn hình "Thiết lập lần đầu" để tạo Admin duy nhất. Từ đó trở đi chỉ có màn hình đăng nhập; Admin thêm nhân sự ở **Khác, Quản lý tài khoản** (tạo tài khoản, đặt mật khẩu tạm, đổi vai trò, khóa, xóa, đặt lại mật khẩu).
-- Mật khẩu băm PBKDF2-SHA256 với muối ngẫu nhiên (`js/auth.js`). Sai 5 lần thì khóa tạm. Tài khoản lưu ở khóa riêng, không nằm trong file sao lưu dữ liệu trang trại.
-- Quyền thực thi ngay trong `FarmDB`: Viewer chỉ xem; Staff ghi dữ liệu nhưng không sửa sơ đồ; chỉ Admin được nhập file / đặt lại dữ liệu / quản lý tài khoản. Không còn nút tự đổi vai trò.
-- **Giới hạn quan trọng:** app chạy hoàn toàn trên trình duyệt, tài khoản nằm trong bộ nhớ của từng máy. Vì vậy mỗi điện thoại có danh sách tài khoản riêng, và đây chỉ là lớp chặn người dùng thông thường, không chống được người cố tình dùng công cụ nhà phát triển. Dùng chung nhiều máy và bảo mật thật cần máy chủ xác thực.
-- **Triển khai:** ai mở link trước trên một máy mới sẽ thấy màn hình tạo Admin. Hãy tự thiết lập ngay khi đưa app lên máy mới, và nên phát hành qua HTTPS (bắt buộc để mã hóa mật khẩu hoạt động ngoài localhost).
-- Kiểm thử tự động: `npm test` (Node 20+, không cần cài thư viện) chạy `tests/auth.test.js` và `tests/db.test.js`.
+App không còn là web tĩnh thuần. Mã nằm trong thư mục `public/` (giao diện) và `worker/` (API), chạy trên **Cloudflare Worker + D1** (cơ sở dữ liệu `farmdui65`).
+
+- `wrangler.jsonc`: tên Worker `farmdui65`, thư mục tĩnh `public/`, chỉ `/api/*` đi qua Worker, binding D1 tên `DB`.
+- `db/schema.sql`: bảng `users`, `sessions`, `login_attempts`, `farm_data` (mỗi mục dữ liệu như animals, pens... là một dòng JSON), `meta` (số phiên bản dữ liệu).
+- `worker/index.js`: API `/api/login`, `/logout`, `/me`, `/password`, `/data` (GET/PUT), `/version`, `/users`.
+- **Đăng nhập nội bộ, không có đăng ký.** Admin tạo tài khoản ở Khác, Quản lý tài khoản. Người mới (và người vừa được đặt lại mật khẩu) bị buộc đặt mật khẩu mới ở lần đăng nhập đầu, máy chủ chặn mọi API dữ liệu cho tới khi đổi xong.
+- Mật khẩu: trình duyệt băm PBKDF2-SHA256 (150000 vòng, muối `duifarm|tên đăng nhập`) thành "khóa" rồi gửi; máy chủ chỉ lưu SHA-256(muối ngẫu nhiên + khóa). Máy chủ không thấy mật khẩu gốc. Sai 5 lần thì khóa tạm. Phiên là cookie HttpOnly 14 ngày (chỉ lưu băm token trong D1). Yêu cầu ghi bắt buộc tiêu đề `x-requested-with: duifarm` và cùng nguồn (chống CSRF).
+- **Đồng bộ dữ liệu** (`public/js/sync.js`): máy chủ là nơi giữ dữ liệu chính; `FarmDB.persist()` lưu tạm vào localStorage rồi đẩy lên `/api/data` (có số phiên bản). Hai người sửa cùng lúc: người lưu sau nhận lỗi 409, app tải bản mới và báo. Mất mạng thì giữ thay đổi và gửi lại khi có mạng; nếu lúc đó dữ liệu máy chủ đã đổi thì bản máy chủ thắng. Cứ 40 giây (và khi quay lại tab) app kiểm tra phiên bản để lấy thay đổi của người khác.
+- **Phân quyền thực thi cả ở máy chủ:** Viewer không ghi được; Staff không đổi được `farm_map`, `farm_map_revisions`, `pens`, `zones`; chỉ Admin khởi tạo dữ liệu lần đầu và quản lý tài khoản. Các quy tắc chi tiết hơn (nhập file, đặt lại dữ liệu chỉ Admin) vẫn chỉ kiểm ở giao diện.
+- Giới hạn: mỗi mục dữ liệu tối đa khoảng 1,9 MB (giới hạn dòng của D1). Gói D1 miễn phí đủ cho trang trại nhỏ nhưng hãy xem lại hạn mức trên trang giá Cloudflare.
+- **Chạy thử trên máy:** `start.bat` hoặc `npm run dev` (cổng 8787, D1 cục bộ trong `.wrangler/`). Lần đầu chạy `node scripts/make-seed.mjs` để sinh `db/seed-users.local.sql` (mật khẩu tạm in ra màn hình, file này không đưa lên git), rồi `wrangler d1 execute farmdui65 --local --file=db/seed-users.local.sql`.
+- **D1 thật:** `npm run db:remote` tạo bảng; nạp tài khoản bằng `wrangler d1 execute farmdui65 --remote --file=db/seed-users.local.sql`. Khi Admin đầu tiên đăng nhập và máy chủ chưa có dữ liệu, dữ liệu đang có trong trình duyệt của người đó được đưa lên làm bản gốc, vì vậy hãy để Admin đăng nhập đầu tiên trên máy đang có dữ liệu thật.
+- Kiểm thử: `npm test` (Node 22+, chạy Worker thật trên SQLite trong bộ nhớ, không cần mạng hay wrangler).

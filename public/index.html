@@ -1077,6 +1077,7 @@
         <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modalPassword')">Đóng</button>
       </div>
       <div class="modal-body">
+        <p id="passwordHint" class="login-sub" hidden></p>
         <div class="form-group" id="passwordOldGroup"><label class="form-label" for="pwOld">Mật khẩu hiện tại</label>
           <input id="pwOld" type="password" class="form-control" autocomplete="current-password"></div>
         <div class="form-group"><label class="form-label" for="pwNew">Mật khẩu mới (tối thiểu 8 ký tự)</label>
@@ -1093,15 +1094,12 @@
   </div>
 
   <!-- MÀN HÌNH ĐĂNG NHẬP (nội bộ, không có đăng ký) -->
+  <div id="bootLoading" class="login-screen" role="status"><p class="login-sub">Đang tải...</p></div>
   <div id="loginScreen" class="login-screen" hidden>
-    <form id="loginForm" class="login-card" autocomplete="on">
+    <form id="loginForm" class="login-card" autocomplete="on" hidden>
       <div class="brand-mark login-mark">DF</div>
-      <h1 class="login-title" id="loginTitle">Đăng nhập</h1>
-      <p class="login-sub" id="loginSub">Chỉ dành cho nhân sự trang trại. Cần tài khoản do Admin cấp.</p>
-      <div class="form-group" id="loginDisplayGroup" hidden>
-        <label class="form-label" for="loginDisplay">Họ tên của bạn</label>
-        <input id="loginDisplay" class="form-control" autocomplete="name">
-      </div>
+      <h1 class="login-title">Đăng nhập</h1>
+      <p class="login-sub">Chỉ dành cho nhân sự trang trại. Cần tài khoản do Admin cấp.</p>
       <div class="form-group">
         <label class="form-label" for="loginUser">Tên đăng nhập</label>
         <input id="loginUser" class="form-control" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
@@ -1110,13 +1108,32 @@
         <label class="form-label" for="loginPass">Mật khẩu</label>
         <input id="loginPass" type="password" class="form-control" autocomplete="current-password">
       </div>
-      <div class="form-group" id="loginConfirmGroup" hidden>
-        <label class="form-label" for="loginConfirm">Nhập lại mật khẩu</label>
-        <input id="loginConfirm" type="password" class="form-control" autocomplete="new-password">
-      </div>
       <label class="login-show"><input type="checkbox" id="loginShowPass"> Hiện mật khẩu</label>
       <div id="loginError" class="login-error" role="alert" hidden></div>
       <button type="submit" class="btn btn-primary login-submit" id="loginSubmit">Đăng nhập</button>
+    </form>
+
+    <!-- Hộp thoại bắt buộc đặt mật khẩu mới ở lần đăng nhập đầu (hoặc sau khi Admin đặt lại) -->
+    <form id="forcePwForm" class="login-card" autocomplete="off" hidden>
+      <div class="brand-mark login-mark">DF</div>
+      <h1 class="login-title">Đặt mật khẩu mới</h1>
+      <p class="login-sub">Xin chào <strong id="forceWho"></strong>. Đây là lần đầu bạn đăng nhập (hoặc Admin vừa đặt lại mật khẩu). Hãy tự đặt mật khẩu của riêng bạn để tiếp tục.</p>
+      <div class="form-group">
+        <label class="form-label" for="forceOld">Mật khẩu tạm hiện tại</label>
+        <input id="forceOld" type="password" class="form-control" autocomplete="current-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="forceNew">Mật khẩu mới (tối thiểu 8 ký tự)</label>
+        <input id="forceNew" type="password" class="form-control" autocomplete="new-password">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="forceConfirm">Nhập lại mật khẩu mới</label>
+        <input id="forceConfirm" type="password" class="form-control" autocomplete="new-password">
+      </div>
+      <label class="login-show"><input type="checkbox" id="forceShowPass"> Hiện mật khẩu</label>
+      <div id="forceError" class="login-error" role="alert" hidden></div>
+      <button type="submit" class="btn btn-primary login-submit" id="forceSubmit">Lưu mật khẩu và vào app</button>
+      <button type="button" class="btn btn-outline login-submit" id="forceLogout" style="margin-top:8px;">Đăng xuất</button>
     </form>
   </div>
 
@@ -1124,6 +1141,7 @@
 
   <script src="js/util.js"></script>
   <script src="js/auth.js"></script>
+  <script src="js/sync.js"></script>
   <script src="js/auth-ui.js"></script>
   <script src="js/db.js"></script>
   <script src="js/search.js"></script>

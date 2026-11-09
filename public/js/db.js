@@ -338,7 +338,8 @@ class FarmDB {
     }
   }
 
-  persist() {
+  // Ghi bản lưu tạm trên máy (không đồng bộ lên máy chủ)
+  saveLocal() {
     try {
       localStorage.setItem(DB_KEY, JSON.stringify(this.data));
       this.lastPersistError = null;
@@ -351,6 +352,13 @@ class FarmDB {
       }
       return false;
     }
+  }
+
+  // Mọi thay đổi dữ liệu đều đi qua đây: lưu tạm trên máy rồi đẩy lên máy chủ (js/sync.js)
+  persist() {
+    const ok = this.saveLocal();
+    if (typeof window !== 'undefined' && window.farmSync) window.farmSync.markDirty();
+    return ok;
   }
 
   assertAdmin() {
