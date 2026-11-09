@@ -1,0 +1,8 @@
+{
+  "name": "duifarm-pro",
+  "private": true,
+  "description": "Quản lý trang trại Dúi (web tĩnh, chạy trên trình duyệt)",
+  "scripts": {
+    "test": "node --test \"tests/*.test.js\""
+  }
+}

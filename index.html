@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#1b6c80">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" type="image/png" href="icons/icon-192.png">
@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 </head>
-<body>
+<body class="auth-locked">
 
   <div class="app-container">
     <!-- APP TOPBAR (COMPACT & CLEAN) -->
@@ -298,23 +298,34 @@
 
       <!-- TAB 5: KHÁC (MORE MODULES & ROLE SWITCHER) -->
       <section id="tab-more" class="tab-pane">
-        <!-- Role Switcher (RBAC) -->
+        <!-- Tài khoản đang đăng nhập -->
         <div class="role-switcher-card">
-          <div style="font-size:13px; font-weight:600; color:var(--text);">Vai trò hiện tại & Phân quyền</div>
-          <div style="font-size:12px; color:var(--muted); margin-top:2px;">Chọn vai trò để kiểm tra quyền hạn thực tế:</div>
-          <div class="role-buttons-grid">
-            <button class="role-btn" id="roleBtnAdmin" onclick="changeRole('ADMIN')">ADMIN</button>
-            <button class="role-btn" id="roleBtnManager" onclick="changeRole('MANAGER')">MANAGER</button>
-            <button class="role-btn" id="roleBtnStaff" onclick="changeRole('STAFF')">STAFF</button>
-            <button class="role-btn" id="roleBtnViewer" onclick="changeRole('VIEWER')">VIEWER</button>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <div style="min-width:0;">
+              <div id="accountDisplayName" style="font-size:15px; font-weight:600; overflow:hidden; text-overflow:ellipsis;"></div>
+              <div id="accountUsername" class="mono-code" style="font-size:12px; color:var(--muted);"></div>
+            </div>
+            <span class="pill pill-accent" id="accountRolePill"></span>
           </div>
-          <div id="roleDescriptionText" style="font-size:11.5px; color:var(--faint); margin-top:8px;">
-            Admin: Toàn quyền quản lý trang trại và chỉnh sửa sơ đồ chuồng.
+          <div id="roleDescriptionText" style="font-size:12px; color:var(--muted); margin-top:8px;"></div>
+          <div class="account-actions">
+            <button class="btn btn-outline" onclick="openChangePasswordModal()">Đổi mật khẩu</button>
+            <button class="btn btn-outline" onclick="doLogout()">Đăng xuất</button>
           </div>
         </div>
 
         <!-- Menu List of Sub-modules -->
         <div class="mobile-card-list">
+          <div class="item-card" id="accountsMenuItem" style="cursor:pointer;" hidden onclick="switchSubModule('sub-accounts')">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div>
+                <div class="item-card-title">Quản lý tài khoản</div>
+                <div style="font-size:12px; color:var(--muted);">Thêm nhân sự, đặt lại mật khẩu, khóa tài khoản</div>
+              </div>
+              <span style="color:var(--faint);">›</span>
+            </div>
+          </div>
+
           <div class="item-card" style="cursor:pointer;" onclick="switchSubModule('sub-pens')">
             <div style="display:flex; justify-content:space-between; align-items:center;">
               <div>
@@ -453,6 +464,35 @@
         </div>
       </section>
 
+      <!-- SUB-MODULE: TÀI KHOẢN (chỉ Admin) -->
+      <section id="sub-accounts" class="tab-pane">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+          <button class="btn btn-outline btn-sm" onclick="switchTab('tab-more')">‹ Quay lại</button>
+          <div style="font-size:15px; font-weight:600;">Quản lý tài khoản</div>
+        </div>
+        <div class="item-card" style="margin-bottom:14px;">
+          <div class="item-card-title">Thêm nhân sự</div>
+          <div style="font-size:12px; color:var(--muted); margin:2px 0 8px;">Không có đăng ký công khai: chỉ Admin tạo tài khoản và đưa mật khẩu tạm cho nhân sự.</div>
+          <form id="addUserForm" autocomplete="off">
+            <div class="form-group"><label class="form-label" for="newUserName">Tên đăng nhập</label>
+              <input id="newUserName" class="form-control" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="vd: nhanvien1"></div>
+            <div class="form-group"><label class="form-label" for="newUserDisplay">Họ tên hiển thị</label>
+              <input id="newUserDisplay" class="form-control" placeholder="vd: Trần Văn B"></div>
+            <div class="form-group"><label class="form-label" for="newUserRole">Vai trò</label>
+              <select id="newUserRole" class="form-control">
+                <option value="STAFF">STAFF - nhân viên chuồng</option>
+                <option value="MANAGER">MANAGER - quản lý</option>
+                <option value="VIEWER">VIEWER - chỉ xem</option>
+                <option value="ADMIN">ADMIN - quản trị</option>
+              </select></div>
+            <div class="form-group"><label class="form-label" for="newUserPass">Mật khẩu tạm (tối thiểu 8 ký tự)</label>
+              <input id="newUserPass" type="text" class="form-control" autocapitalize="none" autocomplete="off"></div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">Tạo tài khoản</button>
+          </form>
+        </div>
+        <div id="accountsList" class="mobile-card-list"></div>
+      </section>
+
       <!-- SUB-MODULE: SAO LƯU -->
       <section id="sub-backup" class="tab-pane">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
@@ -462,12 +502,12 @@
         <div class="item-card" style="margin-bottom:14px;">
           <div class="item-card-title">Xuất & Nhập file JSON</div>
           <div style="display:flex; flex-direction:column; gap:8px; margin-top:8px;">
-            <button class="btn btn-primary" id="btnExportJSON">Tải xuống file sao lưu JSON</button>
-            <label class="btn btn-outline" style="text-align:center; cursor:pointer;">
+            <button class="btn btn-primary" id="btnExportJSON" data-roles="ADMIN,MANAGER">Tải xuống file sao lưu JSON</button>
+            <label class="btn btn-outline" data-roles="ADMIN" style="text-align:center; cursor:pointer;">
               Khôi phục dữ liệu từ file JSON
               <input type="file" id="fileImportInput" accept=".json" style="display:none;">
             </label>
-            <button class="btn btn-outline" id="btnResetDefault" style="color:var(--negative); border-color:#e8c4c6;">Đặt lại dữ liệu mẫu gốc</button>
+            <button class="btn btn-outline" id="btnResetDefault" data-roles="ADMIN" style="color:var(--negative); border-color:#e8c4c6;">Đặt lại dữ liệu mẫu gốc</button>
           </div>
         </div>
         <div class="item-card">
@@ -1029,8 +1069,62 @@
     </div>
   </div>
 
+  <!-- ĐỔI / ĐẶT LẠI MẬT KHẨU -->
+  <div id="modalPassword" class="modal-overlay">
+    <form class="modal-card" id="passwordForm" autocomplete="off">
+      <div class="modal-header">
+        <h3 class="panel-title" id="passwordTitle">Đổi mật khẩu</h3>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('modalPassword')">Đóng</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group" id="passwordOldGroup"><label class="form-label" for="pwOld">Mật khẩu hiện tại</label>
+          <input id="pwOld" type="password" class="form-control" autocomplete="current-password"></div>
+        <div class="form-group"><label class="form-label" for="pwNew">Mật khẩu mới (tối thiểu 8 ký tự)</label>
+          <input id="pwNew" type="password" class="form-control" autocomplete="new-password"></div>
+        <div class="form-group"><label class="form-label" for="pwConfirm">Nhập lại mật khẩu mới</label>
+          <input id="pwConfirm" type="password" class="form-control" autocomplete="new-password"></div>
+        <div id="passwordError" class="login-error" role="alert" hidden></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('modalPassword')">Hủy</button>
+        <button type="submit" class="btn btn-primary">Lưu mật khẩu</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- MÀN HÌNH ĐĂNG NHẬP (nội bộ, không có đăng ký) -->
+  <div id="loginScreen" class="login-screen" hidden>
+    <form id="loginForm" class="login-card" autocomplete="on">
+      <div class="brand-mark login-mark">DF</div>
+      <h1 class="login-title" id="loginTitle">Đăng nhập</h1>
+      <p class="login-sub" id="loginSub">Chỉ dành cho nhân sự trang trại. Cần tài khoản do Admin cấp.</p>
+      <div class="form-group" id="loginDisplayGroup" hidden>
+        <label class="form-label" for="loginDisplay">Họ tên của bạn</label>
+        <input id="loginDisplay" class="form-control" autocomplete="name">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="loginUser">Tên đăng nhập</label>
+        <input id="loginUser" class="form-control" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="loginPass">Mật khẩu</label>
+        <input id="loginPass" type="password" class="form-control" autocomplete="current-password">
+      </div>
+      <div class="form-group" id="loginConfirmGroup" hidden>
+        <label class="form-label" for="loginConfirm">Nhập lại mật khẩu</label>
+        <input id="loginConfirm" type="password" class="form-control" autocomplete="new-password">
+      </div>
+      <label class="login-show"><input type="checkbox" id="loginShowPass"> Hiện mật khẩu</label>
+      <div id="loginError" class="login-error" role="alert" hidden></div>
+      <button type="submit" class="btn btn-primary login-submit" id="loginSubmit">Đăng nhập</button>
+    </form>
+  </div>
+
   <div id="toastHost" class="toast-host" aria-live="polite"></div>
 
+  <script src="js/util.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/auth-ui.js"></script>
   <script src="js/db.js"></script>
   <script src="js/search.js"></script>
   <script src="js/map.js"></script>

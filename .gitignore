@@ -42,3 +42,8 @@ Thumbs.db
 *.sqlite
 *.sqlite-journal
 
+
+# Công cụ hỗ trợ thiết kế, không thuộc app
+.agents/
+.taste-skill/
+.claude/

@@ -8,6 +8,12 @@ echo Trình duyệt sẽ tự động mở tại: http://localhost:8080
 echo (Nhấn Ctrl+C trong cửa sổ này nếu muốn dừng máy chủ)
 echo ========================================================
 
+where python >nul 2>nul
+if errorlevel 1 (
+  echo Chua cai Python. Tai tai https://www.python.org/downloads/ roi chay lai.
+  pause
+  exit /b 1
+)
 start http://localhost:8080
 python -m http.server 8080
 pause

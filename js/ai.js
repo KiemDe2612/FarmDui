@@ -16,12 +16,14 @@ class FarmAIAssistant {
   ask(question) {
     const q = question.trim().toLowerCase();
     const cleanQ = removeVietnameseTones(q);
+    // Khớp theo từ nguyên vẹn để "om" không dính vào "tong", "nom"...
+    const has = (...terms) => terms.some(t => new RegExp('(^|[^a-z0-9])' + t + '([^a-z0-9]|$)').test(cleanQ));
 
     let reply = '';
     let sources = [];
 
     // 1. Câu hỏi thống kê chung
-    if (cleanQ.includes('thong ke') || cleanQ.includes('bao nhieu con') || cleanQ.includes('tong so') || cleanQ.includes('hien trang')) {
+    if (has('thong ke', 'bao nhieu con', 'tong so', 'hien trang')) {
       const stats = this.db.getDashboardStats();
       reply = `**Báo cáo hiện trạng trang trại:**\n` +
         `- Tổng số cá thể đang nuôi: **${stats.totalActiveAnimals} con** (Đực: ${stats.maleCount}, Cái: ${stats.femaleCount}, Chưa rõ: ${stats.unknownCount})\n` +
@@ -31,7 +33,7 @@ class FarmAIAssistant {
       sources.push('Báo cáo thống kê Dashboard');
     }
     // 2. Tra cứu cá thể theo mã ID (ví dụ: D001, D007)
-    else if (/d\d{3}/i.test(q)) {
+    else if (/(^|[^a-z0-9])d\d{3}([^a-z0-9]|$)/i.test(q)) {
       const match = q.match(/d\d{3}/i);
       const code = match[0].toUpperCase();
       const animal = this.db.getAnimalByCode(code);
@@ -55,7 +57,7 @@ class FarmAIAssistant {
       }
     }
     // 3. Tra cứu ca bỏ ăn hoặc dúi ốm
-    else if (cleanQ.includes('bo an') || cleanQ.includes('bo mia') || cleanQ.includes('om') || cleanQ.includes('su co')) {
+    else if (has('bo an', 'bo mia', 'om', 'su co')) {
       const incidents = this.db.getIncidents().filter(i => i.incident_type === 'OFF_FEED');
       const openCases = incidents.filter(i => i.status === 'OPEN');
 
@@ -75,7 +77,7 @@ class FarmAIAssistant {
       }
     }
     // 4. Tra cứu thuốc hoặc hỏi về điều trị / tiêm thuốc
-    else if (cleanQ.includes('thuoc') || cleanQ.includes('tiem') || cleanQ.includes('khang sinh') || cleanQ.includes('chua benh') || cleanQ.includes('lieu luong')) {
+    else if (has('thuoc', 'tiem', 'khang sinh', 'chua benh', 'lieu luong')) {
       // KIỂM TRA QUY TẮC CỐT LÕI: KHÔNG TỰ BỊA LIỀU TIÊM KHÁNG SINH
       const meds = this.db.getMedicines();
       reply = `**Thông tin tra cứu từ Thư Viện Thuốc Tham Khảo:**\n\n`;
@@ -91,7 +93,7 @@ class FarmAIAssistant {
       sources.push('Thư viện thuốc tham khảo nội bộ');
     }
     // 5. Cảnh báo cận huyết / sinh sản
-    else if (cleanQ.includes('can huyet') || cleanQ.includes('phoi giong') || cleanQ.includes('pha he') || cleanQ.includes('ghep doi')) {
+    else if (has('can huyet', 'phoi giong', 'pha he', 'ghep doi', 'trung huyet')) {
       reply = `**Quy trình ghép phối giống & Kiểm soát cận huyết:**\n` +
         `1. Trước khi ghép đực và cái, hệ thống sẽ tự động đối chiếu phả hệ (Pedigree) 3 đời.\n` +
         `2. Các trường hợp bị cảnh báo nghiêm ngặt:\n` +

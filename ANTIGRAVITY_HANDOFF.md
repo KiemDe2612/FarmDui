@@ -79,7 +79,7 @@ Mọi thành viên trang trại (Admin, Manager, Staff) đều có thể sử d�
 
 ### 6. HƯỚNG DẪN KHỞI CHẠY ỨNG DỤNG MỚI
 
-1. Nhấp đúp vào file [`start.bat`](file:///d:/Quản%20Lí%20Dúi/start.bat) trong thư mục dự án `d:\Quản Lí Dúi`.
+1. Nhấp đúp vào file `start.bat` trong thư mục dự án.
 2. Hoặc mở Command Prompt / PowerShell tại thư mục dự án và gõ:
    ```cmd
    python -m http.server 8080
@@ -94,9 +94,21 @@ Toàn bộ mã nguồn đã được quản lý phiên bản qua Git:
 - Commit hoàn thiện hiện tại: `feat: complete mobile-first touch-first application redesign`
 - Nếu cần hoàn nguyên về phiên bản trước:
   ```cmd
-  git checkout master
+  git checkout main
   git log -n 5 --oneline
   git revert HEAD
   ```
 - Hoặc sử dụng tính năng **Tải xuống file sao lưu JSON** trong mục "Khác $\to$ Dữ liệu & Sao lưu" trước khi thực hiện bất kỳ thay đổi nào.
 
+
+
+---
+
+### 8. ĐĂNG NHẬP, PHÂN QUYỀN VÀ KIỂM THỬ (cập nhật mới nhất)
+
+- **Đăng nhập nội bộ, không có đăng ký.** Lần đầu mở app (máy chưa có tài khoản) sẽ hiện màn hình "Thiết lập lần đầu" để tạo Admin duy nhất. Từ đó trở đi chỉ có màn hình đăng nhập; Admin thêm nhân sự ở **Khác, Quản lý tài khoản** (tạo tài khoản, đặt mật khẩu tạm, đổi vai trò, khóa, xóa, đặt lại mật khẩu).
+- Mật khẩu băm PBKDF2-SHA256 với muối ngẫu nhiên (`js/auth.js`). Sai 5 lần thì khóa tạm. Tài khoản lưu ở khóa riêng, không nằm trong file sao lưu dữ liệu trang trại.
+- Quyền thực thi ngay trong `FarmDB`: Viewer chỉ xem; Staff ghi dữ liệu nhưng không sửa sơ đồ; chỉ Admin được nhập file / đặt lại dữ liệu / quản lý tài khoản. Không còn nút tự đổi vai trò.
+- **Giới hạn quan trọng:** app chạy hoàn toàn trên trình duyệt, tài khoản nằm trong bộ nhớ của từng máy. Vì vậy mỗi điện thoại có danh sách tài khoản riêng, và đây chỉ là lớp chặn người dùng thông thường, không chống được người cố tình dùng công cụ nhà phát triển. Dùng chung nhiều máy và bảo mật thật cần máy chủ xác thực.
+- **Triển khai:** ai mở link trước trên một máy mới sẽ thấy màn hình tạo Admin. Hãy tự thiết lập ngay khi đưa app lên máy mới, và nên phát hành qua HTTPS (bắt buộc để mã hóa mật khẩu hoạt động ngoài localhost).
+- Kiểm thử tự động: `npm test` (Node 20+, không cần cài thư viện) chạy `tests/auth.test.js` và `tests/db.test.js`.

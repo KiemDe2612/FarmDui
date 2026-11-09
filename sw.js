@@ -1,10 +1,13 @@
 /* Service worker: giúp app mở được khi mất mạng.
    Đổi CACHE_VERSION mỗi khi sửa file giao diện để máy người dùng nhận bản mới. */
-const CACHE_VERSION = 'duifarm-v2';
+const CACHE_VERSION = 'duifarm-v3';
 const APP_SHELL = [
   './',
   './index.html',
   './css/style.css',
+  './js/util.js',
+  './js/auth.js',
+  './js/auth-ui.js',
   './js/db.js',
   './js/search.js',
   './js/map.js',
@@ -13,7 +16,8 @@ const APP_SHELL = [
   './js/map-ui.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './icons/icon-maskable-512.png'
 ];
 
 self.addEventListener('install', (event) => {
@@ -51,7 +55,23 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // File tĩnh và font: dùng bản đã lưu ngay, đồng thời cập nhật ngầm
+  // File của app: ưu tiên bản mới từ mạng (tránh HTML mới chạy với JS cũ), mất mạng thì dùng bản đã lưu.
+  // Font: dùng bản đã lưu ngay, cập nhật ngầm.
+  if (!isFont) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res && res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(req).then((cached) => {
       const network = fetch(req)

@@ -293,6 +293,9 @@ class FarmDB {
         this.data = JSON.parse(raw);
       } catch (e) {
         console.error('Lỗi đọc dữ liệu local, khôi phục seed mặc định', e);
+        // Giữ lại bản hỏng để còn cứu được, không ghi đè mất dữ liệu cũ
+        const backupKey = DB_KEY + '_CORRUPT_' + Date.now();
+        try { localStorage.setItem(backupKey, raw); this.loadWarning = backupKey; } catch (e2) { this.loadWarning = 'FAILED'; }
         this.data = JSON.parse(JSON.stringify(INITIAL_SEED));
         this.persist();
       }
@@ -338,12 +341,26 @@ class FarmDB {
   persist() {
     try {
       localStorage.setItem(DB_KEY, JSON.stringify(this.data));
+      this.lastPersistError = null;
+      return true;
     } catch (e) {
       console.error('Lỗi ghi LocalStorage', e);
+      this.lastPersistError = e;
+      if (typeof window !== 'undefined' && window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('farmdb-persist-error', { detail: e }));
+      }
+      return false;
+    }
+  }
+
+  assertAdmin() {
+    if (this.getCurrentUser().role !== 'ADMIN') {
+      throw new Error('Quyền bị từ chối: chỉ Admin mới được thực hiện thao tác này.');
     }
   }
 
   resetToDefault() {
+    this.assertAdmin();
     this.data = JSON.parse(JSON.stringify(INITIAL_SEED));
     this.persist();
   }
@@ -578,6 +595,7 @@ class FarmDB {
   }
 
   addWeight(animalId, weightValue, weightUnit = 'kg', note = '', recordedBy = 'Kỹ thuật viên') {
+    this.assertCanWrite();
     const record = {
       id: 'w-' + Date.now(),
       animal_id: animalId,
@@ -598,6 +616,7 @@ class FarmDB {
   }
 
   createIncident({ incident_type, animal_id, symptoms_observed, severity_level, actions_taken, recorded_by }) {
+    this.assertCanWrite();
     if (incident_type !== 'OFF_FEED' && incident_type !== 'DEATH') {
       throw new Error('Chỉ hỗ trợ 2 loại sự cố: OFF_FEED và DEATH!');
     }
@@ -642,6 +661,7 @@ class FarmDB {
   }
 
   addIncidentFollowUp(incidentId, note, recordedBy = 'Quản Lý') {
+    this.assertCanWrite();
     const inc = this.data.incidents.find(i => i.id === incidentId);
     if (!inc) throw new Error('Không tìm thấy sự cố');
     inc.follow_up_notes.push({
@@ -654,6 +674,7 @@ class FarmDB {
   }
 
   closeIncident(incidentId, outcome, closedBy = 'Quản Lý') {
+    this.assertCanWrite();
     const inc = this.data.incidents.find(i => i.id === incidentId);
     if (!inc) throw new Error('Không tìm thấy sự cố');
     inc.status = 'CLOSED';
@@ -671,6 +692,7 @@ class FarmDB {
   }
 
   createLitter({ litter_code, mother_animal_id, father_animal_id, birth_at, total_born, alive_count, deceased_count, notes }) {
+    this.assertCanWrite();
     const litter = {
       id: 'lit-' + Date.now(),
       litter_code: litter_code || ('LIT-' + Date.now().toString().slice(-6)),
@@ -689,6 +711,7 @@ class FarmDB {
 
   // Tách đàn / Cấp mã định danh cho con non từ lứa đẻ
   registerLitterMemberAsAnimal({ litter_id, animal_code, name, sex, pen_id, recorded_by = 'Quản Lý' }) {
+    this.assertCanWrite();
     const litter = this.data.litters.find(l => l.id === litter_id);
     if (!litter) throw new Error('Không tìm thấy lứa đẻ');
 
@@ -762,28 +785,70 @@ class FarmDB {
   }
 
   // Kiểm tra cảnh báo trùng huyết / cận huyết trước khi ghép phối
+  // Tổ tiên tối đa 3 đời: trả về Map(idTổTiên -> số đời gần nhất, 1 = bố/mẹ)
+  getAncestors(animalId, maxGen = 3) {
+    const result = new Map();
+    let frontier = [animalId];
+    for (let gen = 1; gen <= maxGen; gen++) {
+      const next = [];
+      frontier.forEach(id => {
+        const a = this.getAnimalById(id);
+        if (!a) return;
+        [a.father_id, a.mother_id].forEach(pid => {
+          if (pid && !result.has(pid)) {
+            result.set(pid, gen);
+            next.push(pid);
+          }
+        });
+      });
+      frontier = next;
+    }
+    return result;
+  }
+
+  // Đối chiếu phả hệ 3 đời của đực và cái
   checkInbreedingRisk(maleId, femaleId) {
     if (maleId === femaleId) return { risk: 'HIGH', reason: 'Tự phối giống chính mình (Không hợp lệ)' };
     const male = this.getAnimalById(maleId);
     const female = this.getAnimalById(femaleId);
     if (!male || !female) return { risk: 'UNKNOWN', reason: 'Không đủ dữ liệu' };
 
-    // Cùng bố hoặc cùng mẹ
-    if (male.father_id && female.father_id && male.father_id === female.father_id) {
-      return { risk: 'HIGH', reason: 'Cùng bố (Anh em cùng cha)' };
+    const maleAnc = this.getAncestors(maleId);
+    const femaleAnc = this.getAncestors(femaleId);
+
+    // Một con là tổ tiên trực tiếp của con kia
+    if (femaleAnc.has(maleId)) {
+      const g = femaleAnc.get(maleId);
+      return g === 1
+        ? { risk: 'EXTREME', reason: 'Bố ghép với con gái (Cận huyết bậc 1)' }
+        : { risk: 'HIGH', reason: `Đực là tổ tiên đời thứ ${g} của cái (quan hệ trực hệ)` };
     }
-    if (male.mother_id && female.mother_id && male.mother_id === female.mother_id) {
-      return { risk: 'HIGH', reason: 'Cùng mẹ (Anh em cùng mẹ)' };
-    }
-    // Bố phối với con gái hoặc Mẹ phối với con trai
-    if (male.id === female.father_id) {
-      return { risk: 'EXTREME', reason: 'Bố ghép với con gái (Cận huyết bậc 1)' };
-    }
-    if (female.id === male.mother_id) {
-      return { risk: 'EXTREME', reason: 'Mẹ ghép với con trai (Cận huyết bậc 1)' };
+    if (maleAnc.has(femaleId)) {
+      const g = maleAnc.get(femaleId);
+      return g === 1
+        ? { risk: 'EXTREME', reason: 'Mẹ ghép với con trai (Cận huyết bậc 1)' }
+        : { risk: 'HIGH', reason: `Cái là tổ tiên đời thứ ${g} của đực (quan hệ trực hệ)` };
     }
 
-    return { risk: 'LOW', reason: 'Không phát hiện liên hệ cận huyết trực tiếp' };
+    // Tổ tiên chung: tổng số đời càng nhỏ thì càng gần huyết thống
+    let best = null;
+    maleAnc.forEach((gm, id) => {
+      if (femaleAnc.has(id)) {
+        const sum = gm + femaleAnc.get(id);
+        if (!best || sum < best.sum) best = { id, sum, gm, gf: femaleAnc.get(id) };
+      }
+    });
+    if (best) {
+      const anc = this.getAnimalById(best.id);
+      const code = anc ? anc.animal_code : best.id;
+      if (best.sum <= 3) {
+        const same = best.gm === 1 && best.gf === 1;
+        return { risk: 'HIGH', reason: same ? `Anh chị em chung bố hoặc mẹ (${code})` : `Chú/dì và cháu, chung tổ tiên ${code}` };
+      }
+      return { risk: 'MEDIUM', reason: `Có chung tổ tiên ${code} (đực đời ${best.gm}, cái đời ${best.gf})` };
+    }
+
+    return { risk: 'LOW', reason: 'Không phát hiện tổ tiên chung trong 3 đời' };
   }
 
   // --- SỨC KHỎE & THUỐC THAM KHẢO ---
@@ -796,6 +861,7 @@ class FarmDB {
   }
 
   createHealthRecord({ animal_id, diagnosis_text, severity = 'MILD', notes = '', recorded_by = 'Quản Lý' }) {
+    this.assertCanWrite();
     const record = {
       id: 'hr-' + Date.now(),
       animal_id,
@@ -907,7 +973,7 @@ class FarmDB {
   logAudit(actor, action, details) {
     if (!this.data.audit_logs) this.data.audit_logs = [];
     this.data.audit_logs.unshift({
-      id: 'aud-' + Date.now(),
+      id: 'aud-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       time: new Date().toISOString(),
       actor: actor || 'Admin',
       action,
@@ -1047,22 +1113,11 @@ class FarmDB {
     return this.data.zones || [];
   }
 
-  // --- QUẢN LÝ VAI TRÒ & NGƯỜI DÙNG HIỆN TẠI (RBAC) ---
+  // --- NGƯỜI DÙNG HIỆN TẠI (lấy từ phiên đăng nhập, xem js/auth.js) ---
+  // Chưa đăng nhập thì chỉ được xem (VIEWER). Không còn cách tự đổi vai trò.
   getCurrentUser() {
-    if (!this.currentUser) {
-      const saved = localStorage.getItem('FARM_CURRENT_USER');
-      this.currentUser = saved ? JSON.parse(saved) : { name: 'Nguyễn Văn Quản Lý', role: 'ADMIN' };
-    }
-    return this.currentUser;
-  }
-
-  setUserRole(role) {
-    const user = this.getCurrentUser();
-    user.role = role;
-    this.currentUser = user;
-    localStorage.setItem('FARM_CURRENT_USER', JSON.stringify(user));
-    this.logAudit(user.name, 'CHANGE_ROLE', `Chuyển vai trò sang: ${role}`);
-    return user;
+    const u = window.farmAuth && window.farmAuth.getSessionUser();
+    return u ? { name: u.display_name || u.username, username: u.username, role: u.role } : { name: 'Khách', username: '', role: 'VIEWER' };
   }
 
   canEditMap() {
@@ -1084,24 +1139,34 @@ class FarmDB {
     };
   }
 
-  // Xuất file dữ liệu JSON
+  // Xuất file dữ liệu JSON (không chứa tài khoản/mật khẩu)
   exportDataJSON() {
+    this.data.last_backup_at = new Date().toISOString();
+    this.persist();
     return JSON.stringify(this.data, null, 2);
   }
 
-  // Nhập file dữ liệu JSON
+  // Nhập file dữ liệu JSON (chỉ Admin)
   importDataJSON(jsonStr) {
+    this.assertAdmin();
+    let parsed;
     try {
-      const parsed = JSON.parse(jsonStr);
-      if (!parsed.animals || !parsed.pens) {
-        throw new Error('Dữ liệu không đúng cấu trúc Farm Management!');
-      }
-      this.data = parsed;
-      this.persist();
-      return true;
+      parsed = JSON.parse(jsonStr);
     } catch (e) {
       throw new Error('Không thể đọc file JSON: ' + e.message);
     }
+    const arrays = ['animals', 'pens'];
+    if (!parsed || typeof parsed !== 'object' || !arrays.every(k => Array.isArray(parsed[k]))) {
+      throw new Error('Dữ liệu không đúng cấu trúc Farm Management!');
+    }
+    const previous = this.data;
+    this.data = parsed;
+    this.migrate();
+    if (!this.persist()) {
+      this.data = previous;
+      throw new Error('Không ghi được dữ liệu vào bộ nhớ máy (có thể đã đầy).');
+    }
+    return true;
   }
 }
 
